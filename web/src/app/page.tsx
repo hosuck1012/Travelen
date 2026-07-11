@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const steps = [
   {
     number: "01",
@@ -74,35 +76,37 @@ export default function Home() {
             </a>
           </div>
 
-          <a
+          <Link
             className="rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_30px_rgba(116,71,239,0.27)] transition hover:-translate-y-0.5"
-            href="#how"
+            href="/planner"
           >
             여행 만들기
-          </a>
+          </Link>
         </nav>
       </header>
 
-      <section id="top" className="mx-auto grid max-w-[90rem] gap-12 px-5 pb-24 pt-14 2xl:grid-cols-[minmax(880px,1fr)_360px] 2xl:items-center 2xl:gap-12 2xl:pb-28 2xl:pt-20">
-        <div>
+      <section id="top" className="mx-auto grid max-w-7xl gap-12 px-5 pb-24 pt-14 lg:grid-cols-[minmax(0,1fr)_minmax(320px,460px)] lg:items-center lg:gap-10 lg:pb-28 lg:pt-20">
+        <div className="relative z-10 min-w-0">
           <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#e4d9ff] bg-[var(--primary-soft)] px-4 py-2 text-sm font-extrabold text-[var(--primary)]">
             ✦ 취향 기반 AI 여행 플래너
           </p>
-          <h1 className="max-w-none text-5xl font-black leading-none text-[#17151f] md:text-6xl 2xl:text-[64px]">
+          <h1 className="max-w-[820px] text-5xl font-black leading-none text-[#17151f] md:text-6xl lg:text-[60px]">
             <span className="block">여행 조건만 고르면</span>
-            <span className="mt-3 block text-[0.72em] 2xl:whitespace-nowrap text-[var(--primary)]">AI가 일정과 동선을 준비해드립니다.</span>
+            <span className="mt-3 block text-[0.7em] leading-tight text-[var(--primary)] sm:whitespace-nowrap">
+              AI가 일정과 동선을 준비해드립니다.
+            </span>
           </h1>
           <p className="mt-7 max-w-xl text-lg leading-8 text-[var(--muted)]">
             TripMate AI는 취향과 예산에 맞는 여행 초안을 보여주고, 선택한 일정의 숙소와 맛집, 이동 흐름까지 한눈에 살펴볼 수 있게 도와줍니다.
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <a
+            <Link
               className="inline-flex min-h-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] px-7 text-base font-extrabold text-white shadow-[0_14px_34px_rgba(116,71,239,0.28)] transition hover:-translate-y-0.5"
-              href="#how"
+              href="/planner"
             >
               여행 만들기
-            </a>
+            </Link>
             <a
               className="inline-flex min-h-14 items-center justify-center rounded-full border border-[var(--line)] bg-white px-7 text-base font-extrabold text-[#17151f] transition hover:-translate-y-0.5 hover:border-[#cbb8ff]"
               href="#destinations"
@@ -121,9 +125,9 @@ export default function Home() {
           </dl>
         </div>
 
-        <div className="relative mx-auto w-full max-w-2xl 2xl:max-w-[360px]">
-          <div className="absolute left-4 top-8 hidden h-[520px] w-[520px] rounded-full border border-dashed border-[rgba(116,71,239,0.24)] lg:block" />
-          <div className="relative ml-auto aspect-[0.94] w-full max-w-[540px] overflow-hidden rounded-[56px] bg-[linear-gradient(180deg,#8a77d8_0%,#e69a98_40%,#f5d2b1_65%,#7ea8c6_100%)] shadow-[0_34px_80px_rgba(47,34,85,0.22)]">
+        <div className="relative z-0 mx-auto w-full max-w-2xl lg:max-w-[460px]">
+          <div className="absolute -right-8 top-8 hidden h-[420px] w-[420px] rounded-full border border-dashed border-[rgba(116,71,239,0.24)] lg:block" />
+          <div className="relative ml-auto aspect-[0.94] w-full max-w-[460px] overflow-hidden rounded-[48px] bg-[linear-gradient(180deg,#8a77d8_0%,#e69a98_40%,#f5d2b1_65%,#7ea8c6_100%)] shadow-[0_34px_80px_rgba(47,34,85,0.22)]">
             <div className="absolute right-[17%] top-[19%] h-16 w-16 rounded-full bg-[#ffefcf]/90 shadow-[0_0_50px_rgba(255,236,196,0.55)]" />
             <div className="absolute -left-[10%] -right-[8%] bottom-[18%] h-[34%] rotate-[-6deg] rounded-t-[55%] bg-[#654c77]/75" />
             <div className="absolute left-[6%] -right-[14%] bottom-[8%] h-[40%] rotate-[7deg] rounded-t-[58%] bg-[#775873]" />
