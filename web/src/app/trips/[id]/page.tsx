@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import type { FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type PlanId = "relax" | "balance" | "active";
 type DayKey = "day1" | "day2" | "day3";
@@ -18,6 +19,14 @@ type ScheduleItem = {
   marker: { x: string; y: string };
 };
 
+type DaySchedule = {
+  label: string;
+  area: string;
+  summary: string;
+  route: string;
+  items: ScheduleItem[];
+};
+
 type TripPlan = {
   id: PlanId;
   title: string;
@@ -28,7 +37,17 @@ type TripPlan = {
   movement: string;
   hotel: string;
   tags: string[];
-  days: Record<DayKey, { label: string; area: string; summary: string; route: string; items: ScheduleItem[] }>;
+  days: Record<DayKey, DaySchedule>;
+};
+
+type ChatMessage = {
+  id: number;
+  role: "ai" | "user";
+  text: string;
+  change?: {
+    before: string[];
+    after: string[];
+  };
 };
 
 const dayTabs: { key: DayKey; label: string }[] = [
@@ -43,6 +62,14 @@ const typeStyles: Record<ItemType, string> = {
   숙소: "bg-[#e9f7ef] text-[#237b4e]",
   이동: "bg-[#eef5ff] text-[#2f6da8]",
 };
+
+const initialMessages: ChatMessage[] = [
+  {
+    id: 1,
+    role: "ai",
+    text: "안녕하세요! 일정에서 바꾸고 싶은 부분을 자연스럽게 말해주세요.",
+  },
+];
 
 const tripPlans: Record<PlanId, TripPlan> = {
   relax: {
@@ -527,6 +554,86 @@ const tripPlans: Record<PlanId, TripPlan> = {
   },
 };
 
+function cloneTripPlan(plan: TripPlan): TripPlan {
+  return {
+    ...plan,
+    tags: [...plan.tags],
+    days: {
+      day1: { ...plan.days.day1, items: plan.days.day1.items.map((item) => ({ ...item, marker: { ...item.marker } })) },
+      day2: { ...plan.days.day2, items: plan.days.day2.items.map((item) => ({ ...item, marker: { ...item.marker } })) },
+      day3: { ...plan.days.day3, items: plan.days.day3.items.map((item) => ({ ...item, marker: { ...item.marker } })) },
+    },
+  };
+}
+
+function shouldApplyRelaxedDay2Request(request: string) {
+  const normalized = request.replace(/\s+/g, "");
+  const mentionsDay2 =
+    normalized.includes("둘째날") ||
+    normalized.includes("둘째") ||
+    normalized.includes("2일차") ||
+    normalized.toLowerCase().includes("day2");
+  const asksForRelaxedPace =
+    normalized.includes("여유") ||
+    normalized.includes("느긋") ||
+    normalized.includes("천천히") ||
+    normalized.includes("널널");
+
+  return mentionsDay2 || asksForRelaxedPace;
+}
+
+function createRelaxedDay2(trip: TripPlan): DaySchedule {
+  const currentDay2 = trip.days.day2;
+  const busyItem =
+    currentDay2.items.find((item) => item.title.includes("레드 비치")) ??
+    currentDay2.items.find((item) => item.title.includes("화산섬")) ??
+    currentDay2.items.find((item) => item.type === "관광지") ??
+    currentDay2.items[currentDay2.items.length - 2];
+
+  const cafeItem: ScheduleItem = {
+    time: "14:30",
+    type: "식당",
+    title: "오이아 카페 자유시간",
+    description: "AI 수정 반영 · 카페 체류 시간을 2시간으로 늘렸습니다.",
+    meta: "체류 2시간",
+    cost: "약 20,000원",
+    marker: { x: "31%", y: "18%" },
+  };
+
+  const compactItems = currentDay2.items
+    .filter((item) => item !== busyItem)
+    .map((item) => {
+      const isCafeOrLunchStop =
+        item.title.includes("카페") ||
+        item.title.includes("점심") ||
+        item.description.includes("점심") ||
+        item.title.includes("타베르나");
+
+      if (isCafeOrLunchStop) {
+        return { ...cafeItem, marker: { ...cafeItem.marker } };
+      }
+
+      return { ...item, marker: { ...item.marker } };
+    });
+
+  const hasCafeItem = compactItems.some((item) => item.title.includes("카페"));
+  const relaxedItems = hasCafeItem
+    ? compactItems
+    : [
+        ...compactItems.slice(0, Math.max(compactItems.length - 1, 1)),
+        { ...cafeItem, marker: { ...cafeItem.marker } },
+        ...compactItems.slice(Math.max(compactItems.length - 1, 1)),
+      ];
+
+  return {
+    label: currentDay2.label,
+    area: "이메로비글리 · 오이아",
+    summary: "둘째 날은 이동을 줄이고 카페와 자유 시간을 늘린 여유로운 일정입니다.",
+    route: "오늘 이동 약 16.8km · 차량 44분",
+    items: relaxedItems,
+  };
+}
+
 function isPlanId(id: string): id is PlanId {
   return id === "relax" || id === "balance" || id === "active";
 }
@@ -637,17 +744,110 @@ function MockMap({ day }: { day: TripPlan["days"][DayKey] }) {
   );
 }
 
+function ChatPanel({
+  messages,
+  inputValue,
+  isResponding,
+  onInputChange,
+  onSubmit,
+}: {
+  messages: ChatMessage[];
+  inputValue: string;
+  isResponding: boolean;
+  onInputChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const messagesViewportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const viewport = messagesViewportRef.current;
+    if (!viewport) return;
+
+    viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, isResponding]);
+
+  return (
+    <aside className="flex h-[calc(100vh-10rem)] min-h-[480px] flex-col overflow-hidden rounded-[32px] border border-white bg-[#fcfbfd] shadow-[var(--shadow)] lg:h-[calc(100vh-8rem)] lg:max-h-[720px] lg:min-h-[620px]">
+      <div className="flex min-h-16 items-center justify-between border-b border-[var(--line)] bg-white/85 px-5 py-4">
+        <strong className="flex items-center gap-2 text-sm font-black">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#2d9960] shadow-[0_0_0_5px_rgba(45,153,96,0.1)]" />
+          AI 여행 도우미
+        </strong>
+        <span className="rounded-full bg-[var(--primary-soft)] px-3 py-1 text-xs font-black text-[var(--primary)]">Mock</span>
+      </div>
+
+      <div ref={messagesViewportRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-5">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`max-w-[92%] rounded-[18px] px-4 py-3 text-sm leading-6 ${
+              message.role === "user"
+                ? "self-end rounded-br-md bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] text-white"
+                : "self-start border border-[var(--line)] bg-white text-[#4c4655]"
+            }`}
+          >
+            <p>{message.text}</p>
+            {message.change ? (
+              <div className="mt-3 rounded-2xl bg-[#f8f6fc] p-3 text-xs font-bold leading-6 text-[#5b5364]">
+                <div className="font-black text-[#b15929]">변경 전</div>
+                {message.change.before.map((item) => (
+                  <div key={item}>- {item}</div>
+                ))}
+                <div className="mt-2 font-black text-[var(--primary)]">변경 후</div>
+                {message.change.after.map((item) => (
+                  <div key={item}>+ {item}</div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
+        {isResponding ? (
+          <div className="self-start rounded-[18px] border border-[var(--line)] bg-white px-4 py-3 text-sm font-bold text-[var(--muted)]">
+            일정을 다시 구성하는 중...
+          </div>
+        ) : null}
+      </div>
+
+      <div className="border-t border-[var(--line)] bg-white p-4">
+        <form className="flex gap-2 rounded-[20px] border border-[#e4dfeb] bg-[#fbfafd] p-2" onSubmit={onSubmit}>
+          <input
+            className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-sm font-semibold outline-none placeholder:text-[#9b95a5]"
+            value={inputValue}
+            onChange={(event) => onInputChange(event.target.value)}
+            placeholder="예: 둘째 날 일정을 여유롭게 바꿔줘"
+          />
+          <button
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] text-lg font-black text-white disabled:opacity-50"
+            type="submit"
+            disabled={isResponding}
+            aria-label="수정 요청 전송"
+          >
+            →
+          </button>
+        </form>
+      </div>
+    </aside>
+  );
+}
+
 export default function TripDetailPage() {
   const params = useParams<{ id: string }>();
   const requestedId = params.id;
+  const initialTrip = isPlanId(requestedId) ? tripPlans[requestedId] : tripPlans.balance;
+  const [trip, setTrip] = useState<TripPlan>(() => cloneTripPlan(initialTrip));
   const [activeDay, setActiveDay] = useState<DayKey>("day1");
-  const [mobilePanel, setMobilePanel] = useState<"schedule" | "map">("schedule");
+  const [mobilePanel, setMobilePanel] = useState<"schedule" | "map" | "chat">("schedule");
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [chatInput, setChatInput] = useState("");
+  const [isResponding, setIsResponding] = useState(false);
 
   if (!isPlanId(requestedId)) {
     return <InvalidPlanScreen id={requestedId} />;
   }
 
-  const trip = tripPlans[requestedId];
   const currentDay = trip.days[activeDay];
 
   const summaryItems = [
@@ -658,9 +858,75 @@ export default function TripDetailPage() {
     ["숙소", trip.hotel],
   ];
 
+  function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const request = chatInput.trim();
+    if (!request || isResponding) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now(),
+      role: "user",
+      text: request,
+    };
+    const shouldRelaxDay2 = shouldApplyRelaxedDay2Request(request);
+    const previousDay2 = trip.days.day2;
+    const nextDay2 = createRelaxedDay2(trip);
+
+    setMessages((current) => [...current, userMessage]);
+    setChatInput("");
+    setIsResponding(true);
+
+    if (shouldRelaxDay2) {
+      setTrip((current) => ({
+        ...current,
+        days: {
+          ...current.days,
+          day2: {
+            ...nextDay2,
+            items: nextDay2.items.map((item) => ({ ...item, marker: { ...item.marker } })),
+          },
+        },
+      }));
+      setActiveDay("day2");
+      setMobilePanel("schedule");
+    }
+
+    window.setTimeout(() => {
+      const aiMessage: ChatMessage = shouldRelaxDay2
+        ? {
+            id: Date.now() + 1,
+            role: "ai",
+            text: "좋아요. 둘째 날 이동을 줄이고 카페와 휴식 시간을 늘린 일정으로 바꿨어요.",
+            change: {
+              before: [
+                `${previousDay2.items.length}개 일정 · ${previousDay2.route}`,
+                previousDay2.items.map((item) => item.title).join(" → "),
+              ],
+              after: [
+                `${nextDay2.items.length}개 일정 · ${nextDay2.route}`,
+                nextDay2.items.map((item) => item.title).join(" → "),
+              ],
+            },
+          }
+        : {
+            id: Date.now() + 1,
+            role: "ai",
+            text: "요청을 확인했어요. 현재 목업에서는 둘째 날을 여유롭게 바꾸는 예시 수정만 실제 일정에 반영됩니다.",
+            change: {
+              before: ["현재 mock 일정 유지"],
+              after: ["다음 단계에서 요청 유형별 부분 수정으로 확장 예정"],
+            },
+          };
+
+      setMessages((current) => [...current, aiMessage]);
+      setIsResponding(false);
+    }, 700);
+  }
+
   return (
     <main className="min-h-screen bg-[var(--background)] px-5 py-6 text-[var(--foreground)]">
-      <header className="mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-[24px] border border-white/80 bg-white/80 px-5 py-3 shadow-[var(--shadow-sm)] backdrop-blur-xl">
+      <header className="mx-auto flex max-w-[96rem] items-center justify-between gap-4 rounded-[24px] border border-white/80 bg-white/80 px-5 py-3 shadow-[var(--shadow-sm)] backdrop-blur-xl">
         <Link className="flex items-center gap-3" href="/" aria-label="TripMate AI 홈">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] text-lg font-black text-white">
             ✦
@@ -672,7 +938,7 @@ export default function TripDetailPage() {
         </Link>
       </header>
 
-      <section className="mx-auto max-w-7xl py-10 lg:py-14">
+      <section className="mx-auto max-w-[96rem] py-10 lg:py-14">
         <div className="rounded-[32px] border border-white bg-white/85 p-6 shadow-[var(--shadow)] backdrop-blur md:p-9">
           <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
             <div>
@@ -718,10 +984,11 @@ export default function TripDetailPage() {
             ))}
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2 lg:hidden">
+          <div className="mt-3 grid grid-cols-3 gap-2 lg:hidden">
             {[
               ["schedule", "일정"],
               ["map", "지도"],
+              ["chat", "AI 채팅"],
             ].map(([key, label]) => (
               <button
                 key={key}
@@ -729,7 +996,7 @@ export default function TripDetailPage() {
                   mobilePanel === key ? "bg-[var(--primary)] text-white" : "bg-white text-[#625d6d]"
                 }`}
                 type="button"
-                onClick={() => setMobilePanel(key as "schedule" | "map")}
+                onClick={() => setMobilePanel(key as "schedule" | "map" | "chat")}
               >
                 {label}
               </button>
@@ -737,7 +1004,7 @@ export default function TripDetailPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:items-start">
+        <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(300px,0.9fr)_minmax(320px,1fr)_minmax(280px,0.8fr)] lg:items-start">
           <section className={`${mobilePanel === "schedule" ? "block" : "hidden"} lg:block`}>
             <div className="mb-5 rounded-[28px] border border-white bg-white/85 p-6 shadow-[var(--shadow-sm)]">
               <div className="text-sm font-black text-[var(--primary)]">{currentDay.area}</div>
@@ -749,6 +1016,16 @@ export default function TripDetailPage() {
 
           <div className={`${mobilePanel === "map" ? "block" : "hidden"} lg:sticky lg:top-8 lg:block`}>
             <MockMap day={currentDay} />
+          </div>
+
+          <div className={`${mobilePanel === "chat" ? "block" : "hidden"} lg:sticky lg:top-8 lg:block`}>
+            <ChatPanel
+              messages={messages}
+              inputValue={chatInput}
+              isResponding={isResponding}
+              onInputChange={setChatInput}
+              onSubmit={handleChatSubmit}
+            />
           </div>
         </div>
       </section>
