@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f6fb;
+  --foreground: #17151f;
+  --muted: #777381;
+  --line: #ebe8f1;
+  --primary: #7447ef;
+  --primary-2: #9d75ff;
+  --primary-soft: #f0eaff;
+  --shadow: 0 22px 60px rgba(67, 47, 114, 0.12);
+  --shadow-sm: 0 10px 30px rgba(67, 47, 114, 0.08);
 }
 
 @theme inline {
@@ -12,15 +19,24 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at 15% 5%, rgba(157, 117, 255, 0.12), transparent 26%),
+    radial-gradient(circle at 90% 22%, rgba(117, 175, 255, 0.1), transparent 28%),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    var(--font-geist-sans), Pretendard, "Noto Sans KR", "Apple SD Gothic Neo",
+    Arial, Helvetica, sans-serif;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
 }
