@@ -1,0 +1,2378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AI 여행 플래너 한글 디자인 목업" />
+  <title>트리플리 | AI 여행 플래너 목업</title>
+  <style>
+    /* =========================
+       1. 디자인 토큰
+       바이브 코딩 시 여기만 바꿔도 전체 분위기가 바뀝니다.
+    ========================== */
+    :root {
+      --bg: #f7f6fb;
+      --surface: rgba(255, 255, 255, 0.9);
+      --surface-solid: #ffffff;
+      --text: #17151f;
+      --muted: #777381;
+      --line: #ebe8f1;
+      --primary: #7447ef;
+      --primary-2: #9d75ff;
+      --primary-soft: #f0eaff;
+      --success: #2d9960;
+      --warning: #ed7f3b;
+      --shadow: 0 22px 60px rgba(67, 47, 114, 0.12);
+      --shadow-sm: 0 10px 30px rgba(67, 47, 114, 0.08);
+      --radius-xl: 32px;
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --max-width: 1240px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family:
+        Pretendard, "Noto Sans KR", "Apple SD Gothic Neo",
+        -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 5%, rgba(157, 117, 255, 0.12), transparent 26%),
+        radial-gradient(circle at 90% 22%, rgba(117, 175, 255, 0.10), transparent 28%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      overflow-x: hidden;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    img,
+    svg {
+      display: block;
+      max-width: 100%;
+    }
+
+    .container {
+      width: min(calc(100% - 40px), var(--max-width));
+      margin: 0 auto;
+    }
+
+    .section {
+      padding: 104px 0;
+    }
+
+    .section-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .section-kicker::before {
+      content: "✦";
+      font-size: 16px;
+    }
+
+    .section-title {
+      font-size: clamp(34px, 4vw, 54px);
+      line-height: 1.12;
+      letter-spacing: -0.045em;
+    }
+
+    .section-copy {
+      max-width: 600px;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .button {
+      border: 0;
+      border-radius: 999px;
+      padding: 15px 23px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-weight: 800;
+      transition: 0.2s ease;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+    }
+
+    .button-primary {
+      color: white;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      box-shadow: 0 12px 30px rgba(116, 71, 239, 0.27);
+    }
+
+    .button-secondary {
+      color: var(--text);
+      background: white;
+      border: 1px solid var(--line);
+    }
+
+    .button-small {
+      padding: 10px 16px;
+      font-size: 14px;
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 auto;
+    }
+
+    /* =========================
+       2. 상단 내비게이션
+    ========================== */
+    .nav-wrap {
+      position: sticky;
+      top: 14px;
+      z-index: 100;
+      padding-top: 14px;
+    }
+
+    .nav {
+      min-height: 72px;
+      padding: 12px 16px 12px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.92);
+      border-radius: 24px;
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(20px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      border-radius: 11px;
+      box-shadow: 0 8px 18px rgba(116, 71, 239, 0.25);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      color: #5e5968;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .nav-links a:hover {
+      color: var(--primary);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .profile {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #efd7bd, #8b6b5b);
+      color: white;
+      font-weight: 900;
+      border: 3px solid white;
+      box-shadow: 0 6px 16px rgba(31, 23, 50, 0.13);
+    }
+
+    .mobile-menu {
+      display: none;
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: white;
+    }
+
+    /* =========================
+       3. 히어로
+    ========================== */
+    .hero {
+      min-height: calc(100vh - 86px);
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      align-items: center;
+      gap: 68px;
+      padding: 78px 0 70px;
+    }
+
+    .hero-copy {
+      padding-left: 8px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      margin-bottom: 24px;
+      color: var(--primary);
+      background: var(--primary-soft);
+      border: 1px solid #e4d9ff;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .hero h1 {
+      max-width: 620px;
+      font-size: clamp(52px, 6.8vw, 84px);
+      line-height: 0.98;
+      letter-spacing: -0.065em;
+    }
+
+    .hero h1 .gradient {
+      color: transparent;
+      background: linear-gradient(135deg, var(--primary), #a15cff);
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+
+    .hero-description {
+      max-width: 520px;
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 34px;
+      flex-wrap: wrap;
+    }
+
+    .social-proof {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .avatar-stack {
+      display: flex;
+      padding-left: 8px;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      margin-left: -8px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: white;
+      font-size: 11px;
+      font-weight: 900;
+      border: 3px solid var(--bg);
+    }
+
+    .avatar:nth-child(1) { background: #574e7a; }
+    .avatar:nth-child(2) { background: #cf8070; }
+    .avatar:nth-child(3) { background: #6a9b82; }
+    .avatar:nth-child(4) { background: #bf945e; }
+
+    .hero-visual {
+      position: relative;
+      min-height: 600px;
+      display: grid;
+      place-items: center;
+    }
+
+    .orbit {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border: 1px dashed rgba(116, 71, 239, 0.2);
+      border-radius: 50%;
+      animation: spin 26s linear infinite;
+    }
+
+    .orbit::before,
+    .orbit::after {
+      content: "✦";
+      position: absolute;
+      color: var(--primary);
+      font-size: 18px;
+      background: var(--bg);
+      padding: 6px;
+    }
+
+    .orbit::before {
+      top: 13%;
+      left: 11%;
+    }
+
+    .orbit::after {
+      right: 2%;
+      bottom: 21%;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .destination-art {
+      position: relative;
+      width: min(100%, 540px);
+      aspect-ratio: 0.94;
+      overflow: hidden;
+      border-radius: 56px;
+      box-shadow: 0 34px 80px rgba(47, 34, 85, 0.22);
+      background: linear-gradient(180deg, #8a77d8 0%, #e69a98 40%, #f5d2b1 65%, #7ea8c6 100%);
+      isolation: isolate;
+    }
+
+    .destination-art::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 72% 20%, rgba(255,255,255,0.55), transparent 18%),
+        linear-gradient(180deg, transparent 58%, rgba(54, 102, 131, 0.48) 100%);
+      z-index: 1;
+    }
+
+    .sun {
+      position: absolute;
+      top: 19%;
+      right: 17%;
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: rgba(255, 239, 207, 0.9);
+      box-shadow: 0 0 50px rgba(255, 236, 196, 0.55);
+    }
+
+    .island-back,
+    .island-front {
+      position: absolute;
+      left: -10%;
+      right: -8%;
+      bottom: 18%;
+      height: 34%;
+      border-radius: 50% 62% 0 0 / 58% 74% 0 0;
+      background: #654c77;
+      transform: rotate(-6deg);
+      opacity: 0.75;
+    }
+
+    .island-front {
+      left: 6%;
+      right: -14%;
+      bottom: 8%;
+      height: 40%;
+      background: #775873;
+      opacity: 1;
+      transform: rotate(7deg);
+    }
+
+    .sea {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 24%;
+      background:
+        linear-gradient(180deg, rgba(130, 177, 204, 0.92), #527e9d);
+    }
+
+    .village {
+      position: absolute;
+      right: 4%;
+      bottom: 15%;
+      width: 76%;
+      height: 48%;
+      z-index: 3;
+    }
+
+    .house {
+      position: absolute;
+      width: 74px;
+      height: 58px;
+      border-radius: 11px 11px 4px 4px;
+      background: #fffaf2;
+      box-shadow: inset -8px -8px 0 rgba(215, 218, 234, 0.33);
+    }
+
+    .house::before {
+      content: "";
+      position: absolute;
+      width: 19px;
+      height: 28px;
+      left: 26px;
+      bottom: 0;
+      border-radius: 8px 8px 0 0;
+      background: #3d72b6;
+    }
+
+    .house.h1 { right: 30px; bottom: 38px; }
+    .house.h2 { right: 104px; bottom: 72px; transform: scale(0.92); }
+    .house.h3 { right: 181px; bottom: 38px; transform: scale(0.84); }
+    .house.h4 { right: 60px; bottom: 132px; transform: scale(0.78); }
+    .house.h5 { right: 153px; bottom: 126px; transform: scale(0.74); }
+
+    .dome {
+      position: absolute;
+      right: 131px;
+      bottom: 181px;
+      width: 76px;
+      height: 46px;
+      border-radius: 50% 50% 12px 12px;
+      background: #276dc4;
+      z-index: 5;
+    }
+
+    .dome::after {
+      content: "";
+      position: absolute;
+      left: 31px;
+      top: -24px;
+      width: 10px;
+      height: 26px;
+      border-radius: 5px 5px 0 0;
+      background: white;
+    }
+
+    .hero-trip-card {
+      position: absolute;
+      left: -34px;
+      bottom: 70px;
+      z-index: 6;
+      width: min(360px, calc(100% - 28px));
+      padding: 20px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.93);
+      border: 1px solid rgba(255,255,255,0.82);
+      box-shadow: 0 20px 50px rgba(24, 20, 39, 0.2);
+      backdrop-filter: blur(14px);
+    }
+
+    .trip-card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .hero-trip-card h3 {
+      font-size: 19px;
+      letter-spacing: -0.03em;
+    }
+
+    .hero-trip-card p {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .round-arrow {
+      width: 46px;
+      height: 46px;
+      border: 0;
+      border-radius: 50%;
+      color: white;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+
+    /* =========================
+       4. 이용 흐름 / 인기 여행지
+    ========================== */
+    .soft-panel {
+      padding: 54px;
+      border-radius: var(--radius-xl);
+      background: rgba(255, 255, 255, 0.87);
+      border: 1px solid rgba(255,255,255,0.95);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: 42px;
+    }
+
+    .step {
+      position: relative;
+      padding-right: 34px;
+    }
+
+    .step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: 24px;
+      right: 12px;
+      width: calc(100% - 72px);
+      height: 1px;
+      transform: translateX(100%);
+      background: repeating-linear-gradient(
+        90deg,
+        #ddd3fb 0,
+        #ddd3fb 5px,
+        transparent 5px,
+        transparent 10px
+      );
+    }
+
+    .step-icon {
+      position: relative;
+      z-index: 2;
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 20px;
+      color: var(--primary);
+      background: var(--primary-soft);
+      border-radius: 16px;
+      font-size: 22px;
+    }
+
+    .step-number {
+      margin-bottom: 5px;
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .step h3 {
+      font-size: 17px;
+      letter-spacing: -0.025em;
+    }
+
+    .step p {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .destinations-head {
+      margin-top: 74px;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+    }
+
+    .text-link {
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .destination-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-top: 24px;
+    }
+
+    .destination-card {
+      min-width: 0;
+    }
+
+    .destination-thumb {
+      height: 245px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      transition: 0.25s ease;
+    }
+
+    .destination-card:hover .destination-thumb {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .thumb-bali {
+      background:
+        radial-gradient(circle at 72% 26%, #ffe8a8 0 7%, transparent 8%),
+        linear-gradient(160deg, transparent 0 48%, #2c6949 49% 62%, #163d2a 63%),
+        linear-gradient(180deg, #95d3e4 0 55%, #5d957a 56%);
+    }
+
+    .thumb-paris {
+      background:
+        linear-gradient(77deg, transparent 48%, #34303c 49% 51%, transparent 52%),
+        linear-gradient(103deg, transparent 48%, #34303c 49% 51%, transparent 52%),
+        linear-gradient(90deg, transparent 46%, #34303c 47% 53%, transparent 54%),
+        linear-gradient(180deg, #a9cae4 0 58%, #7c996e 59%);
+    }
+
+    .thumb-kyoto {
+      background:
+        linear-gradient(90deg, transparent 15%, #b83340 16% 20%, transparent 21% 80%, #b83340 81% 85%, transparent 86%),
+        linear-gradient(180deg, transparent 12%, #b83340 13% 17%, transparent 18% 35%, #b83340 36% 40%, transparent 41%),
+        radial-gradient(circle at 20% 20%, #e06d74 0 4%, transparent 5%),
+        radial-gradient(circle at 36% 16%, #f09aa2 0 5%, transparent 6%),
+        radial-gradient(circle at 70% 13%, #e06d74 0 5%, transparent 6%),
+        linear-gradient(180deg, #e8d8cf 0 55%, #6e5646 56%);
+    }
+
+    .thumb-barcelona {
+      background:
+        linear-gradient(83deg, transparent 38%, #4e3e2f 39% 42%, transparent 43%),
+        linear-gradient(97deg, transparent 58%, #4e3e2f 59% 62%, transparent 63%),
+        radial-gradient(ellipse at 50% 62%, #d19b5a 0 12%, transparent 13%),
+        linear-gradient(180deg, #95c5e5 0 55%, #d9b27e 56%);
+    }
+
+    .destination-card h3 {
+      margin-top: 15px;
+      font-size: 17px;
+      letter-spacing: -0.025em;
+    }
+
+    .destination-card p {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* =========================
+       5. 여행 조건 입력 폼
+    ========================== */
+    .planner-section {
+      position: relative;
+    }
+
+    .planner-section::before {
+      content: "";
+      position: absolute;
+      inset: 6% 0 auto;
+      height: 560px;
+      background: linear-gradient(135deg, rgba(116, 71, 239, 0.10), rgba(117, 195, 255, 0.09));
+      filter: blur(4px);
+      z-index: -1;
+    }
+
+    .planner-layout {
+      display: grid;
+      grid-template-columns: 0.72fr 1.28fr;
+      gap: 38px;
+      align-items: start;
+    }
+
+    .planner-copy {
+      position: sticky;
+      top: 110px;
+      padding-top: 20px;
+    }
+
+    .planner-copy ul {
+      list-style: none;
+      margin-top: 30px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .planner-copy li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #5e5968;
+      font-size: 15px;
+    }
+
+    .check {
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      color: var(--primary);
+      background: var(--primary-soft);
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .planner-card {
+      padding: 38px;
+      border-radius: 30px;
+      background: white;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .progress-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .progress-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #ece9f3;
+    }
+
+    .progress-bar span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 22px;
+    }
+
+    .field-full {
+      grid-column: 1 / -1;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 9px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .input,
+    .select {
+      width: 100%;
+      min-height: 54px;
+      padding: 0 16px;
+      color: var(--text);
+      background: #fbfafd;
+      border: 1px solid #e7e3ed;
+      border-radius: 15px;
+      outline: none;
+      transition: 0.2s ease;
+    }
+
+    .input:focus,
+    .select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(116, 71, 239, 0.10);
+    }
+
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      border: 1px solid #e6e1ee;
+      border-radius: 999px;
+      padding: 11px 15px;
+      color: #625d6d;
+      background: white;
+      font-size: 14px;
+      font-weight: 750;
+      transition: 0.2s ease;
+    }
+
+    .chip:hover,
+    .chip.active {
+      color: var(--primary);
+      border-color: #cbb8ff;
+      background: var(--primary-soft);
+    }
+
+    .form-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      margin-top: 30px;
+    }
+
+    .form-note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* =========================
+       6. 플랜 비교 카드
+    ========================== */
+    .result-section {
+      display: none;
+      padding-top: 40px;
+    }
+
+    .result-section.visible {
+      display: block;
+      animation: rise 0.45s ease both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .result-meta {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .plan-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .plan-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 25px;
+      background: white;
+      box-shadow: var(--shadow-sm);
+      transition: 0.24s ease;
+    }
+
+    .plan-card:hover {
+      transform: translateY(-7px);
+      box-shadow: var(--shadow);
+    }
+
+    .plan-card.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(116, 71, 239, 0.12), var(--shadow);
+    }
+
+    .plan-image {
+      height: 220px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .plan-image.relax {
+      background:
+        radial-gradient(circle at 72% 27%, #fff0c9 0 7%, transparent 8%),
+        linear-gradient(155deg, transparent 0 45%, #6c5d8d 46% 57%, #44385f 58%),
+        linear-gradient(180deg, #baa9ec 0 48%, #e3b2b6 49% 67%, #648ca2 68%);
+    }
+
+    .plan-image.balance {
+      background:
+        radial-gradient(circle at 68% 23%, #fff3c5 0 6%, transparent 7%),
+        linear-gradient(145deg, transparent 0 52%, #67577d 53% 61%, #4d3e61 62%),
+        linear-gradient(180deg, #7fc3e8 0 58%, #77a5bb 59%);
+    }
+
+    .plan-image.adventure {
+      background:
+        radial-gradient(circle at 22% 18%, #ffd8a2 0 6%, transparent 7%),
+        linear-gradient(145deg, transparent 0 33%, #965e47 34% 48%, #463943 49%),
+        linear-gradient(180deg, #e79d82 0 48%, #584d60 49%);
+    }
+
+    .plan-image::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 34%;
+      background: linear-gradient(transparent, rgba(20, 16, 28, 0.3));
+    }
+
+    .plan-badge {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      z-index: 2;
+      padding: 7px 11px;
+      border-radius: 999px;
+      color: white;
+      background: rgba(20, 16, 28, 0.48);
+      backdrop-filter: blur(8px);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .plan-body {
+      padding: 20px;
+    }
+
+    .plan-title-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .plan-card h3 {
+      font-size: 20px;
+      letter-spacing: -0.035em;
+    }
+
+    .tag {
+      display: inline-flex;
+      padding: 6px 9px;
+      margin-top: 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .tag.green {
+      color: #237b4e;
+      background: #e9f7ef;
+    }
+
+    .tag.purple {
+      color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .tag.orange {
+      color: #b15929;
+      background: #fff0e7;
+    }
+
+    .plan-summary {
+      min-height: 45px;
+      margin-top: 15px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .plan-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 15px;
+    }
+
+    .mini-chip {
+      padding: 6px 9px;
+      color: #625d6d;
+      background: #f6f4f8;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .plan-price-row {
+      margin-top: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 18px;
+    }
+
+    .price {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .price-caption {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    /* =========================
+       7. 일정 + 지도 + AI 채팅
+    ========================== */
+    .trip-dashboard {
+      display: none;
+      margin-top: 40px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: white;
+      box-shadow: var(--shadow);
+    }
+
+    .trip-dashboard.visible {
+      display: block;
+      animation: rise 0.45s ease both;
+    }
+
+    .dashboard-topbar {
+      min-height: 78px;
+      padding: 15px 20px 15px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .dashboard-title h3 {
+      font-size: 21px;
+      letter-spacing: -0.035em;
+    }
+
+    .dashboard-title p {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dashboard-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 390px 1fr 330px;
+      min-height: 650px;
+    }
+
+    .itinerary-panel {
+      padding: 20px;
+      border-right: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .day-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 5px;
+      border-radius: 13px;
+      background: #f4f2f7;
+    }
+
+    .day-tab {
+      border: 0;
+      padding: 10px 8px;
+      color: var(--muted);
+      background: transparent;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .day-tab.active {
+      color: var(--primary);
+      background: white;
+      box-shadow: 0 4px 12px rgba(47, 37, 74, 0.08);
+    }
+
+    .timeline {
+      margin-top: 24px;
+      display: grid;
+      gap: 0;
+    }
+
+    .schedule-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 12px;
+      padding-bottom: 22px;
+    }
+
+    .schedule-item:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 61px;
+      top: 15px;
+      bottom: -1px;
+      width: 1px;
+      background: #e2d9fb;
+    }
+
+    .time {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      padding-top: 2px;
+    }
+
+    .schedule-content {
+      position: relative;
+      padding-left: 20px;
+    }
+
+    .schedule-content::before {
+      content: "";
+      position: absolute;
+      left: -1px;
+      top: 5px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 0 5px var(--primary-soft);
+      z-index: 2;
+    }
+
+    .schedule-card {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 12px;
+      padding: 10px;
+      border: 1px solid #efecf3;
+      border-radius: 14px;
+      background: #fff;
+      transition: 0.2s ease;
+    }
+
+    .schedule-card:hover {
+      border-color: #cdbaff;
+      transform: translateX(4px);
+    }
+
+    .schedule-thumb {
+      height: 58px;
+      border-radius: 10px;
+      background: linear-gradient(145deg, #9176ce, #f1c1b1);
+    }
+
+    .schedule-card strong {
+      display: block;
+      font-size: 13px;
+      letter-spacing: -0.02em;
+    }
+
+    .schedule-card p {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .map-panel {
+      position: relative;
+      overflow: hidden;
+      min-height: 650px;
+      background:
+        linear-gradient(27deg, transparent 49%, rgba(164, 196, 215, 0.32) 50%, transparent 51%) 0 0 / 76px 76px,
+        linear-gradient(153deg, transparent 49%, rgba(164, 196, 215, 0.24) 50%, transparent 51%) 0 0 / 92px 92px,
+        #eaf3f8;
+    }
+
+    .map-island {
+      position: absolute;
+      width: 58%;
+      height: 82%;
+      left: 23%;
+      top: 8%;
+      border-radius: 48% 42% 55% 37% / 31% 48% 36% 58%;
+      background:
+        radial-gradient(circle at 45% 30%, rgba(255,255,255,0.8), transparent 35%),
+        #f8f8f2;
+      box-shadow:
+        0 0 0 2px rgba(127, 160, 178, 0.18),
+        inset 0 0 60px rgba(119, 163, 185, 0.12);
+      transform: rotate(7deg);
+    }
+
+    .map-road {
+      position: absolute;
+      left: 41%;
+      top: 12%;
+      width: 20%;
+      height: 75%;
+      border-left: 5px solid var(--primary);
+      border-radius: 50%;
+      transform: rotate(-5deg);
+      filter: drop-shadow(0 5px 6px rgba(116, 71, 239, 0.18));
+    }
+
+    .map-road::after {
+      content: "";
+      position: absolute;
+      left: -20px;
+      bottom: -16px;
+      width: 76px;
+      height: 135px;
+      border-left: 5px solid var(--primary);
+      border-radius: 50%;
+      transform: rotate(25deg);
+    }
+
+    .marker {
+      position: absolute;
+      z-index: 4;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: var(--primary);
+      border: 4px solid white;
+      border-radius: 50% 50% 50% 10%;
+      transform: rotate(-45deg);
+      box-shadow: 0 8px 16px rgba(77, 47, 152, 0.24);
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .marker span {
+      transform: rotate(45deg);
+    }
+
+    .marker.m1 { left: 47%; top: 15%; }
+    .marker.m2 { left: 54%; top: 35%; }
+    .marker.m3 { left: 56%; top: 58%; }
+    .marker.m4 { left: 44%; top: 78%; }
+
+    .map-controls {
+      position: absolute;
+      right: 16px;
+      top: 16px;
+      z-index: 5;
+      display: grid;
+      gap: 8px;
+    }
+
+    .map-button {
+      width: 40px;
+      height: 40px;
+      border: 1px solid #dce7ed;
+      border-radius: 12px;
+      background: white;
+      box-shadow: 0 6px 15px rgba(60, 91, 108, 0.1);
+      font-weight: 900;
+    }
+
+    .map-caption {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      z-index: 5;
+      padding: 12px 14px;
+      border-radius: 13px;
+      background: rgba(255,255,255,0.92);
+      box-shadow: 0 8px 24px rgba(60, 91, 108, 0.13);
+      backdrop-filter: blur(12px);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .chat-panel {
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--line);
+      background: #fcfbfd;
+    }
+
+    .chat-head {
+      min-height: 64px;
+      padding: 16px 17px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .chat-head strong {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .online-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #46b97a;
+      box-shadow: 0 0 0 4px #e3f7eb;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+
+    .message {
+      max-width: 88%;
+      padding: 12px 13px;
+      border-radius: 15px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .message.ai {
+      align-self: flex-start;
+      color: #4c4655;
+      background: white;
+      border: 1px solid var(--line);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      color: white;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      border-bottom-right-radius: 4px;
+    }
+
+    .change-card {
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 11px;
+      color: #5b5364;
+      background: #f5f1ff;
+      font-size: 11px;
+    }
+
+    .chat-input-wrap {
+      padding: 14px;
+      border-top: 1px solid var(--line);
+      background: white;
+    }
+
+    .chat-form {
+      display: flex;
+      gap: 8px;
+      padding: 7px;
+      border: 1px solid #e4dfeb;
+      border-radius: 15px;
+      background: #faf9fc;
+    }
+
+    .chat-input {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      outline: none;
+      background: transparent;
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+
+    .send-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 11px;
+      color: white;
+      background: var(--primary);
+      font-weight: 900;
+    }
+
+    /* =========================
+       8. 푸터
+    ========================== */
+    footer {
+      padding: 28px 0 48px;
+    }
+
+    .footer-inner {
+      min-height: 88px;
+      padding: 24px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    /* =========================
+       9. 토스트 / 로딩
+    ========================== */
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 200;
+      padding: 14px 18px;
+      color: white;
+      background: #201b2d;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      transform: translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.28s ease;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: none;
+      place-items: center;
+      background: rgba(24, 19, 36, 0.32);
+      backdrop-filter: blur(10px);
+    }
+
+    .loading-overlay.show {
+      display: grid;
+    }
+
+    .loading-card {
+      width: min(90%, 380px);
+      padding: 34px;
+      text-align: center;
+      border-radius: 25px;
+      background: white;
+      box-shadow: var(--shadow);
+    }
+
+    .loader {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 18px;
+      border: 5px solid #ece5ff;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+    }
+
+    .loading-card h3 {
+      font-size: 20px;
+    }
+
+    .loading-card p {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* =========================
+       10. 반응형
+    ========================== */
+    @media (max-width: 1120px) {
+      .hero {
+        gap: 30px;
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 350px 1fr;
+      }
+
+      .chat-panel {
+        grid-column: 1 / -1;
+        min-height: 430px;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .chat-messages {
+        min-height: 260px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .nav-links,
+      .nav-actions .button {
+        display: none;
+      }
+
+      .mobile-menu {
+        display: grid;
+        place-items: center;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+        padding-top: 70px;
+      }
+
+      .hero-copy {
+        text-align: center;
+        padding-left: 0;
+      }
+
+      .hero h1,
+      .hero-description {
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .hero-actions,
+      .social-proof {
+        justify-content: center;
+      }
+
+      .hero-visual {
+        min-height: 540px;
+      }
+
+      .steps {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 34px;
+      }
+
+      .step::after {
+        display: none;
+      }
+
+      .destination-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .planner-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .planner-copy {
+        position: static;
+      }
+
+      .plan-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .container {
+        width: min(calc(100% - 24px), var(--max-width));
+      }
+
+      .section {
+        padding: 72px 0;
+      }
+
+      .nav-wrap {
+        top: 8px;
+        padding-top: 8px;
+      }
+
+      .nav {
+        min-height: 62px;
+        border-radius: 19px;
+      }
+
+      .hero {
+        min-height: auto;
+        padding: 68px 0 38px;
+      }
+
+      .hero h1 {
+        font-size: clamp(44px, 14vw, 66px);
+      }
+
+      .hero-visual {
+        min-height: 460px;
+      }
+
+      .orbit {
+        width: 420px;
+        height: 420px;
+      }
+
+      .destination-art {
+        width: 92%;
+        border-radius: 36px;
+      }
+
+      .hero-trip-card {
+        left: 0;
+        bottom: 34px;
+      }
+
+      .soft-panel {
+        padding: 28px 20px;
+      }
+
+      .steps,
+      .destination-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .destination-thumb {
+        height: 280px;
+      }
+
+      .planner-card {
+        padding: 25px 18px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .field-full {
+        grid-column: auto;
+      }
+
+      .form-bottom,
+      .result-header,
+      .dashboard-topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .form-bottom .button,
+      .dashboard-actions .button {
+        width: 100%;
+      }
+
+      .dashboard-actions {
+        width: 100%;
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .itinerary-panel {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .map-panel {
+        min-height: 500px;
+      }
+
+      .chat-panel {
+        grid-column: auto;
+      }
+
+      .footer-inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 상단 내비게이션 -->
+  <div class="nav-wrap">
+    <nav class="nav container">
+      <a class="brand" href="#top">
+        <span class="brand-mark">✦</span>
+        <span>트리플리</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="#how">이용 방법</a>
+        <a href="#planner">여행 만들기</a>
+        <a href="#plans">추천 플랜</a>
+        <a href="#dashboard">내 일정</a>
+      </div>
+
+      <div class="nav-actions">
+        <button class="button button-secondary button-small" type="button">로그인</button>
+        <button class="button button-primary button-small" type="button" data-scroll="#planner">
+          여행 시작하기
+        </button>
+        <div class="profile" aria-label="프로필">ㅎ</div>
+      </div>
+
+      <button class="mobile-menu" type="button" data-scroll="#planner" aria-label="여행 만들기로 이동">☰</button>
+    </nav>
+  </div>
+
+  <main id="top">
+    <!-- 히어로 -->
+    <section class="container hero">
+      <div class="hero-copy">
+        <div class="eyebrow">AI가 취향부터 동선까지 한 번에</div>
+        <h1>
+          당신만의<br />
+          <span class="gradient">AI 여행 플래너</span>
+        </h1>
+        <p class="hero-description">
+          여행지, 동행, 취향과 예산만 알려주세요.
+          여러 일정 초안을 비교하고 대화로 바로 수정할 수 있어요.
+        </p>
+
+        <div class="hero-actions">
+          <button class="button button-primary" type="button" data-scroll="#planner">
+            내 여행 만들기
+            <span>→</span>
+          </button>
+          <button class="button button-secondary" type="button" data-scroll="#dashboard">
+            샘플 일정 보기
+          </button>
+        </div>
+
+        <div class="social-proof">
+          <div class="avatar-stack" aria-hidden="true">
+            <span class="avatar">민</span>
+            <span class="avatar">서</span>
+            <span class="avatar">윤</span>
+            <span class="avatar">지</span>
+          </div>
+          <span><strong>2,000명+</strong>의 여행자가 일정 만들기를 시작했어요</span>
+        </div>
+      </div>
+
+      <div class="hero-visual" aria-label="산토리니 여행 카드 목업">
+        <div class="orbit"></div>
+
+        <div class="destination-art">
+          <div class="sun"></div>
+          <div class="island-back"></div>
+          <div class="island-front"></div>
+          <div class="sea"></div>
+
+          <div class="village">
+            <span class="house h1"></span>
+            <span class="house h2"></span>
+            <span class="house h3"></span>
+            <span class="house h4"></span>
+            <span class="house h5"></span>
+            <span class="dome"></span>
+          </div>
+        </div>
+
+        <div class="hero-trip-card">
+          <div class="trip-card-row">
+            <div>
+              <h3>산토리니 감성 여행</h3>
+              <p>3일 · 2명 · 7월 24일 – 7월 26일</p>
+            </div>
+            <button class="round-arrow" type="button" data-scroll="#planner" aria-label="여행 만들기">→</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 이용 방법 및 인기 여행지 -->
+    <section class="section" id="how">
+      <div class="container soft-panel">
+        <div class="section-kicker">여행 준비는 더 가볍게</div>
+        <h2 class="section-title">네 단계면 일정이 완성돼요</h2>
+
+        <div class="steps">
+          <article class="step">
+            <div class="step-icon">🧳</div>
+            <div class="step-number">01</div>
+            <h3>여행 조건 입력</h3>
+            <p>날짜, 동행, 취향, 예산을 간단히 선택해요.</p>
+          </article>
+
+          <article class="step">
+            <div class="step-icon">✦</div>
+            <div class="step-number">02</div>
+            <h3>AI 플랜 생성</h3>
+            <p>성격이 다른 여행 초안 3개를 만들어드려요.</p>
+          </article>
+
+          <article class="step">
+            <div class="step-icon">♡</div>
+            <div class="step-number">03</div>
+            <h3>마음에 드는 플랜 선택</h3>
+            <p>예산, 이동량, 분위기를 한눈에 비교해요.</p>
+          </article>
+
+          <article class="step">
+            <div class="step-icon">💬</div>
+            <div class="step-number">04</div>
+            <h3>대화로 일정 수정</h3>
+            <p>“둘째 날은 여유롭게”처럼 말하면 바로 반영돼요.</p>
+          </article>
+        </div>
+
+        <div class="destinations-head">
+          <div>
+            <div class="section-kicker">추천 여행지</div>
+            <h2 class="section-title" style="font-size: 34px;">어디로 떠나볼까요?</h2>
+          </div>
+          <a class="text-link" href="#planner">전체 여행지 보기 →</a>
+        </div>
+
+        <div class="destination-grid">
+          <article class="destination-card">
+            <div class="destination-thumb thumb-bali"></div>
+            <h3>발리, 인도네시아</h3>
+            <p>1인 예상 128만 원부터</p>
+          </article>
+
+          <article class="destination-card">
+            <div class="destination-thumb thumb-paris"></div>
+            <h3>파리, 프랑스</h3>
+            <p>1인 예상 214만 원부터</p>
+          </article>
+
+          <article class="destination-card">
+            <div class="destination-thumb thumb-kyoto"></div>
+            <h3>교토, 일본</h3>
+            <p>1인 예상 79만 원부터</p>
+          </article>
+
+          <article class="destination-card">
+            <div class="destination-thumb thumb-barcelona"></div>
+            <h3>바르셀로나, 스페인</h3>
+            <p>1인 예상 196만 원부터</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 여행 조건 입력 -->
+    <section class="section planner-section" id="planner">
+      <div class="container planner-layout">
+        <div class="planner-copy">
+          <div class="section-kicker">여행 조건 입력</div>
+          <h2 class="section-title">
+            취향을 알려주면<br />
+            AI가 초안을 만들어요
+          </h2>
+          <p class="section-copy">
+            처음부터 완벽하게 적을 필요 없어요.
+            가장 가까운 항목만 선택하고, 결과에서 대화로 수정하세요.
+          </p>
+
+          <ul>
+            <li><span class="check">✓</span> 서로 다른 콘셉트의 일정 3개 생성</li>
+            <li><span class="check">✓</span> 숙소·맛집·관광지·이동 동선 포함</li>
+            <li><span class="check">✓</span> 예상 비용과 이동량 비교</li>
+          </ul>
+        </div>
+
+        <form class="planner-card" id="plannerForm">
+          <div class="progress-top">
+            <span class="progress-label">여행 정보 입력</span>
+            <div class="progress-bar"><span></span></div>
+            <span class="progress-label">5 / 5</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="field field-full">
+              <label for="destination">어디로 떠나나요?</label>
+              <input class="input" id="destination" name="destination" value="산토리니, 그리스" />
+            </div>
+
+            <div class="field">
+              <label for="startDate">출발일</label>
+              <input class="input" id="startDate" name="startDate" type="date" value="2026-07-24" />
+            </div>
+
+            <div class="field">
+              <label for="endDate">도착일</label>
+              <input class="input" id="endDate" name="endDate" type="date" value="2026-07-26" />
+            </div>
+
+            <div class="field field-full">
+              <label>누구와 함께 가나요?</label>
+              <div class="chip-group" data-chip-group="companion">
+                <button class="chip" type="button">혼자</button>
+                <button class="chip active" type="button">연인</button>
+                <button class="chip" type="button">친구</button>
+                <button class="chip" type="button">가족</button>
+                <button class="chip" type="button">아이와 함께</button>
+              </div>
+            </div>
+
+            <div class="field field-full">
+              <label>어떤 여행을 좋아하나요? <span style="color: var(--muted); font-weight: 600;">(복수 선택)</span></label>
+              <div class="chip-group" data-chip-group="style" data-multiple="true">
+                <button class="chip active" type="button">맛집 탐방</button>
+                <button class="chip active" type="button">감성 사진</button>
+                <button class="chip" type="button">자연 풍경</button>
+                <button class="chip" type="button">액티비티</button>
+                <button class="chip active" type="button">여유로운 일정</button>
+                <button class="chip" type="button">쇼핑</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="budget">1인 여행 예산</label>
+              <select class="select" id="budget" name="budget">
+                <option>100만 원 이하</option>
+                <option selected>100만 원 ~ 180만 원</option>
+                <option>180만 원 ~ 250만 원</option>
+                <option>250만 원 이상</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="pace">선호하는 일정 밀도</label>
+              <select class="select" id="pace" name="pace">
+                <option>알차게 많이 보기</option>
+                <option selected>적당히 균형 있게</option>
+                <option>하루 2~3곳 여유롭게</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-bottom">
+            <p class="form-note">목업에서는 입력값을 바꿔도 샘플 산토리니 플랜이 표시됩니다.</p>
+            <button class="button button-primary" type="submit">
+              ✦ AI 여행 플랜 만들기
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- 플랜 비교 결과 -->
+    <section class="section result-section" id="plans">
+      <div class="container">
+        <div class="result-header">
+          <div>
+            <div class="section-kicker">AI 추천 결과</div>
+            <h2 class="section-title" style="font-size: 44px;">당신을 위한 3가지 여행 플랜</h2>
+            <p class="result-meta">산토리니 · 2026년 7월 24일 – 7월 26일 · 2명</p>
+          </div>
+          <button class="button button-secondary button-small" type="button" data-scroll="#planner">
+            조건 다시 수정하기
+          </button>
+        </div>
+
+        <div class="plan-grid">
+          <article class="plan-card" data-plan="relax">
+            <div class="plan-image relax">
+              <span class="plan-badge">느긋한 휴식 중심</span>
+            </div>
+            <div class="plan-body">
+              <div class="plan-title-row">
+                <div>
+                  <h3>느긋한 섬 휴식</h3>
+                  <span class="tag green">휴식 선호도 최고</span>
+                </div>
+              </div>
+              <p class="plan-summary">카페와 해변에서 오래 머물며 노을을 즐기는 여유로운 일정이에요.</p>
+              <div class="plan-features">
+                <span class="mini-chip">카페</span>
+                <span class="mini-chip">노을</span>
+                <span class="mini-chip">해변</span>
+                <span class="mini-chip">이동 적음</span>
+              </div>
+              <div class="plan-price-row">
+                <div>
+                  <div class="price">1,240,000원</div>
+                  <div class="price-caption">1인 예상 비용</div>
+                </div>
+                <button class="button button-primary button-small select-plan" type="button">선택</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="plan-card" data-plan="balance">
+            <div class="plan-image balance">
+              <span class="plan-badge">가장 인기 있는 조합</span>
+            </div>
+            <div class="plan-body">
+              <div class="plan-title-row">
+                <div>
+                  <h3>감성과 관광의 균형</h3>
+                  <span class="tag purple">AI 추천 1순위</span>
+                </div>
+              </div>
+              <p class="plan-summary">대표 관광지, 맛집, 자유시간을 고르게 담은 가장 균형 잡힌 일정이에요.</p>
+              <div class="plan-features">
+                <span class="mini-chip">오이아 마을</span>
+                <span class="mini-chip">맛집</span>
+                <span class="mini-chip">사진</span>
+                <span class="mini-chip">적당한 이동</span>
+              </div>
+              <div class="plan-price-row">
+                <div>
+                  <div class="price">1,480,000원</div>
+                  <div class="price-caption">1인 예상 비용</div>
+                </div>
+                <button class="button button-primary button-small select-plan" type="button">선택</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="plan-card" data-plan="adventure">
+            <div class="plan-image adventure">
+              <span class="plan-badge">경험과 액티비티 중심</span>
+            </div>
+            <div class="plan-body">
+              <div class="plan-title-row">
+                <div>
+                  <h3>섬 구석구석 모험</h3>
+                  <span class="tag orange">활동적인 여행자용</span>
+                </div>
+              </div>
+              <p class="plan-summary">하이킹, 보트 투어, 현지 마을 탐방을 꽉 채운 활동적인 일정이에요.</p>
+              <div class="plan-features">
+                <span class="mini-chip">하이킹</span>
+                <span class="mini-chip">보트 투어</span>
+                <span class="mini-chip">로컬 체험</span>
+                <span class="mini-chip">이동 많음</span>
+              </div>
+              <div class="plan-price-row">
+                <div>
+                  <div class="price">1,760,000원</div>
+                  <div class="price-caption">1인 예상 비용</div>
+                </div>
+                <button class="button button-primary button-small select-plan" type="button">선택</button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- 상세 일정 대시보드 -->
+        <div class="trip-dashboard" id="dashboard">
+          <div class="dashboard-topbar">
+            <div class="dashboard-title">
+              <h3 id="dashboardTitle">감성과 관광의 균형</h3>
+              <p>산토리니 · 2박 3일 · 자동 저장됨</p>
+            </div>
+            <div class="dashboard-actions">
+              <button class="button button-secondary button-small" type="button" id="shareButton">공유</button>
+              <button class="button button-primary button-small" type="button" id="exportButton">일정 내보내기</button>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <aside class="itinerary-panel">
+              <div class="day-tabs">
+                <button class="day-tab active" type="button" data-day="1">Day 1</button>
+                <button class="day-tab" type="button" data-day="2">Day 2</button>
+                <button class="day-tab" type="button" data-day="3">Day 3</button>
+              </div>
+
+              <div class="timeline" id="timeline">
+                <!-- JavaScript가 일정 데이터를 렌더링합니다. -->
+              </div>
+            </aside>
+
+            <section class="map-panel" aria-label="여행 경로 지도 목업">
+              <div class="map-island"></div>
+              <div class="map-road"></div>
+              <div class="marker m1"><span>1</span></div>
+              <div class="marker m2"><span>2</span></div>
+              <div class="marker m3"><span>3</span></div>
+              <div class="marker m4"><span>4</span></div>
+
+              <div class="map-controls">
+                <button class="map-button" type="button">＋</button>
+                <button class="map-button" type="button">⌖</button>
+                <button class="map-button" type="button">－</button>
+              </div>
+
+              <div class="map-caption">오늘 이동 약 18.4km · 차량 52분</div>
+            </section>
+
+            <aside class="chat-panel">
+              <div class="chat-head">
+                <strong><span class="online-dot"></span> AI 여행 도우미</strong>
+                <span style="color: var(--muted);">✕</span>
+              </div>
+
+              <div class="chat-messages" id="chatMessages">
+                <div class="message ai">
+                  안녕하세요! 일정에서 바꾸고 싶은 부분을 자연스럽게 말해주세요.
+                </div>
+
+                <div class="message user">
+                  둘째 날은 너무 빡빡하지 않게 카페 시간을 늘려줘.
+                </div>
+
+                <div class="message ai">
+                  좋아요. 둘째 날 박물관 일정을 빼고, 오이아 카페 자유시간을 1시간 더 늘렸어요.
+                  <div class="change-card">
+                    − 15:30 해양 박물관<br />
+                    + 14:30 오이아 카페 자유시간 2시간
+                  </div>
+                </div>
+              </div>
+
+              <div class="chat-input-wrap">
+                <form class="chat-form" id="chatForm">
+                  <input
+                    class="chat-input"
+                    id="chatInput"
+                    placeholder="예: 첫째 날 저녁을 해산물 맛집으로 바꿔줘"
+                    autocomplete="off"
+                  />
+                  <button class="send-button" type="submit" aria-label="전송">→</button>
+                </form>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-inner">
+      <div class="brand">
+        <span class="brand-mark">✦</span>
+        <span>트리플리</span>
+      </div>
+      <p>AI 여행 플래너 UI 목업 · 실제 예약과 지도 데이터는 연결되지 않았습니다.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast">완료되었습니다.</div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-card">
+      <div class="loader"></div>
+      <h3>취향을 분석하고 있어요</h3>
+      <p>맛집, 동선, 숙소와 여행 분위기를 조합하는 중입니다.</p>
+    </div>
+  </div>
+
+  <script>
+    /* =========================
+       샘플 일정 데이터
+       실제 개발에서는 이 부분을 API 응답으로 교체하세요.
+    ========================== */
+    const schedules = {
+      1: [
+        { time: "08:30", title: "산토리니 도착", desc: "공항에서 픽업 차량으로 숙소 이동" },
+        { time: "10:30", title: "피라 마을 산책", desc: "절벽길과 골목을 천천히 둘러보기" },
+        { time: "13:00", title: "칼데라 뷰 점심", desc: "현지 해산물과 그리스식 샐러드" },
+        { time: "16:00", title: "레드 비치", desc: "해변 산책과 자유시간" },
+        { time: "19:10", title: "오이아 노을 감상", desc: "일몰 명소에서 여행 첫날 마무리" }
+      ],
+      2: [
+        { time: "09:30", title: "브런치 카페", desc: "테라스에서 여유로운 아침" },
+        { time: "11:30", title: "이메로비글리 산책", desc: "조용한 골목과 전망대 둘러보기" },
+        { time: "14:30", title: "오이아 카페 자유시간", desc: "AI 수정 반영 · 체류시간 2시간" },
+        { time: "17:30", title: "와이너리 방문", desc: "현지 와인 시음과 포도밭 투어" }
+      ],
+      3: [
+        { time: "09:00", title: "숙소 조식", desc: "체크아웃 전 여유로운 아침" },
+        { time: "11:00", title: "기념품 쇼핑", desc: "피라 중심가 로컬 숍 방문" },
+        { time: "13:00", title: "마지막 점심", desc: "현지식 수블라키 맛집" },
+        { time: "15:30", title: "공항 이동", desc: "예약 차량으로 공항 이동" }
+      ]
+    };
+
+    const planNames = {
+      relax: "느긋한 섬 휴식",
+      balance: "감성과 관광의 균형",
+      adventure: "섬 구석구석 모험"
+    };
+
+    const plannerForm = document.getElementById("plannerForm");
+    const resultSection = document.getElementById("plans");
+    const dashboard = document.getElementById("dashboard");
+    const dashboardTitle = document.getElementById("dashboardTitle");
+    const timeline = document.getElementById("timeline");
+    const loadingOverlay = document.getElementById("loadingOverlay");
+    const toast = document.getElementById("toast");
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2200);
+    }
+
+    function renderSchedule(day) {
+      timeline.innerHTML = schedules[day]
+        .map(
+          (item, index) => `
+            <article class="schedule-item">
+              <div class="time">${item.time}</div>
+              <div class="schedule-content">
+                <div class="schedule-card">
+                  <div class="schedule-thumb" style="
+                    background:
+                      linear-gradient(${135 + index * 18}deg,
+                      hsl(${255 + index * 18} 50% 62%),
+                      hsl(${15 + index * 13} 70% 82%));
+                  "></div>
+                  <div>
+                    <strong>${item.title}</strong>
+                    <p>${item.desc}</p>
+                  </div>
+                </div>
+              </div>
+            </article>
+          `
+        )
+        .join("");
+    }
+
+    renderSchedule(1);
+
+    /* 앵커 이동 버튼 */
+    document.querySelectorAll("[data-scroll]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelector(button.dataset.scroll)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      });
+    });
+
+    /* 칩 선택 */
+    document.querySelectorAll("[data-chip-group]").forEach((group) => {
+      const isMultiple = group.dataset.multiple === "true";
+
+      group.querySelectorAll(".chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          if (isMultiple) {
+            chip.classList.toggle("active");
+          } else {
+            group.querySelectorAll(".chip").forEach((item) => item.classList.remove("active"));
+            chip.classList.add("active");
+          }
+        });
+      });
+    });
+
+    /* 플랜 생성 */
+    plannerForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      loadingOverlay.classList.add("show");
+
+      setTimeout(() => {
+        loadingOverlay.classList.remove("show");
+        resultSection.classList.add("visible");
+        resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 1100);
+    });
+
+    /* 플랜 선택 */
+    document.querySelectorAll(".select-plan").forEach((button) => {
+      button.addEventListener("click", () => {
+        const card = button.closest(".plan-card");
+        const selectedPlan = card.dataset.plan;
+
+        document.querySelectorAll(".plan-card").forEach((item) => item.classList.remove("selected"));
+        card.classList.add("selected");
+        dashboardTitle.textContent = planNames[selectedPlan];
+        dashboard.classList.add("visible");
+
+        setTimeout(() => {
+          dashboard.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 120);
+
+        showToast(`‘${planNames[selectedPlan]}’ 플랜을 선택했어요.`);
+      });
+    });
+
+    /* 날짜 탭 */
+    document.querySelectorAll(".day-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".day-tab").forEach((item) => item.classList.remove("active"));
+        tab.classList.add("active");
+        renderSchedule(tab.dataset.day);
+      });
+    });
+
+    /* AI 채팅 목업 */
+    const chatForm = document.getElementById("chatForm");
+    const chatInput = document.getElementById("chatInput");
+    const chatMessages = document.getElementById("chatMessages");
+
+    chatForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const value = chatInput.value.trim();
+      if (!value) return;
+
+      const userMessage = document.createElement("div");
+      userMessage.className = "message user";
+      userMessage.textContent = value;
+      chatMessages.appendChild(userMessage);
+
+      chatInput.value = "";
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      setTimeout(() => {
+        const aiMessage = document.createElement("div");
+        aiMessage.className = "message ai";
+        aiMessage.innerHTML = `
+          요청을 반영한 새 일정 초안을 만들었어요.
+          <div class="change-card">
+            변경 전후 비교 UI가 이 위치에 표시됩니다.<br />
+            실제 개발에서는 일정 JSON을 갱신하세요.
+          </div>
+        `;
+        chatMessages.appendChild(aiMessage);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        showToast("AI가 일정을 수정했어요.");
+      }, 700);
+    });
+
+    document.getElementById("shareButton").addEventListener("click", () => {
+      showToast("공유 링크가 복사되었다고 가정한 목업입니다.");
+    });
+
+    document.getElementById("exportButton").addEventListener("click", () => {
+      showToast("PDF 내보내기 기능을 연결할 수 있어요.");
+    });
+
+    /* 처음 페이지를 열었을 때 상세 목업도 바로 볼 수 있도록 표시 */
+    resultSection.classList.add("visible");
+    dashboard.classList.add("visible");
+    document.querySelector('[data-plan="balance"]').classList.add("selected");
+  </script>
+</body>
+</html>
