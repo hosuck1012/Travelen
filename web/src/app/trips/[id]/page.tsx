@@ -4,41 +4,20 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import type {
+  Activity,
+  ActivityCategory,
+  DayKey,
+  ModifyItineraryRequest,
+  ModifyItineraryResponse,
+  PlanId,
+  TripDay,
+  TripPlan,
+} from "@/types/trip";
 
-type PlanId = "relax" | "balance" | "active";
-type DayKey = "day1" | "day2" | "day3";
-type ItemType = "관광지" | "식당" | "숙소" | "이동";
-
-type ScheduleItem = {
-  time: string;
-  type: ItemType;
-  title: string;
-  description: string;
-  meta: string;
-  cost: string;
-  marker: { x: string; y: string };
-};
-
-type DaySchedule = {
-  label: string;
-  area: string;
-  summary: string;
-  route: string;
-  items: ScheduleItem[];
-};
-
-type TripPlan = {
-  id: PlanId;
-  title: string;
-  subtitle: string;
-  destination: string;
-  dateRange: string;
-  budget: string;
-  movement: string;
-  hotel: string;
-  tags: string[];
-  days: Record<DayKey, DaySchedule>;
-};
+type ScheduleItem = Activity;
+type DaySchedule = TripDay;
+type ItemType = ActivityCategory;
 
 type ChatMessage = {
   id: number;
@@ -869,36 +848,31 @@ export default function TripDetailPage() {
       role: "user",
       text: request,
     };
-    const shouldRelaxDay2 = shouldApplyRelaxedDay2Request(request);
+    const modificationRequest: ModifyItineraryRequest = {
+      planId: trip.id,
+      message: request,
+      currentItinerary: Object.values(trip.days),
+    };
+    const shouldRelaxDay2 = shouldApplyRelaxedDay2Request(modificationRequest.message);
     const previousDay2 = trip.days.day2;
     const nextDay2 = createRelaxedDay2(trip);
-
-    setMessages((current) => [...current, userMessage]);
-    setChatInput("");
-    setIsResponding(true);
-
-    if (shouldRelaxDay2) {
-      setTrip((current) => ({
-        ...current,
-        days: {
-          ...current.days,
-          day2: {
-            ...nextDay2,
-            items: nextDay2.items.map((item) => ({ ...item, marker: { ...item.marker } })),
-          },
+    const nextTrip: TripPlan = {
+      ...trip,
+      days: {
+        ...trip.days,
+        day2: {
+          ...nextDay2,
+          items: nextDay2.items.map((item) => ({ ...item, marker: { ...item.marker } })),
         },
-      }));
-      setActiveDay("day2");
-      setMobilePanel("schedule");
-    }
-
-    window.setTimeout(() => {
-      const aiMessage: ChatMessage = shouldRelaxDay2
-        ? {
-            id: Date.now() + 1,
-            role: "ai",
-            text: "좋아요. 둘째 날 이동을 줄이고 카페와 휴식 시간을 늘린 일정으로 바꿨어요.",
-            change: {
+      },
+    };
+    const modificationResponse: ModifyItineraryResponse = {
+      plan: shouldRelaxDay2 ? nextTrip : trip,
+      changes: shouldRelaxDay2
+        ? [
+            {
+              dayId: "day2",
+              summary: "둘째 날의 이동을 줄이고 카페 체류 시간을 늘렸습니다.",
               before: [
                 `${previousDay2.items.length}개 일정 · ${previousDay2.route}`,
                 previousDay2.items.map((item) => item.title).join(" → "),
@@ -908,11 +882,39 @@ export default function TripDetailPage() {
                 nextDay2.items.map((item) => item.title).join(" → "),
               ],
             },
+          ]
+        : [],
+      message: shouldRelaxDay2
+        ? "좋아요. 둘째 날 이동을 줄이고 카페와 휴식 시간을 늘린 일정으로 바꿨어요."
+        : "요청을 확인했어요. 현재 목업에서는 둘째 날을 여유롭게 바꾸는 예시 수정만 실제 일정에 반영됩니다.",
+      modifiedAt: new Date().toISOString(),
+    };
+
+    setMessages((current) => [...current, userMessage]);
+    setChatInput("");
+    setIsResponding(true);
+
+    if (shouldRelaxDay2) {
+      setTrip(cloneTripPlan(modificationResponse.plan));
+      setActiveDay("day2");
+      setMobilePanel("schedule");
+    }
+
+    window.setTimeout(() => {
+      const aiMessage: ChatMessage = shouldRelaxDay2
+        ? {
+            id: Date.now() + 1,
+            role: "ai",
+            text: modificationResponse.message,
+            change: {
+              before: modificationResponse.changes[0].before,
+              after: modificationResponse.changes[0].after,
+            },
           }
         : {
             id: Date.now() + 1,
             role: "ai",
-            text: "요청을 확인했어요. 현재 목업에서는 둘째 날을 여유롭게 바꾸는 예시 수정만 실제 일정에 반영됩니다.",
+            text: modificationResponse.message,
             change: {
               before: ["현재 mock 일정 유지"],
               after: ["다음 단계에서 요청 유형별 부분 수정으로 확장 예정"],

@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
+import type { TripPreferences } from "@/types/trip";
 
-const companionOptions = ["혼자", "연인", "친구", "가족"];
+const companionOptions: TripPreferences["companion"][] = ["혼자", "연인", "친구", "가족"];
 const preferenceOptions = [
   "유명 관광지",
   "맛집 탐방",
@@ -19,29 +20,21 @@ const preferenceOptions = [
   "사진 촬영",
 ];
 const budgetOptions = ["100만 원 이하", "100만 원 ~ 180만 원", "180만 원 ~ 250만 원", "250만 원 이상"];
-const paceOptions = [
+const paceOptions: { value: TripPreferences["pace"]; caption: string }[] = [
   { value: "여유롭게", caption: "하루 핵심 장소 2~3개" },
   { value: "적당히", caption: "하루 핵심 장소 3~4개" },
   { value: "알차게", caption: "하루 핵심 장소 4~6개" },
 ];
 
-type PlannerForm = {
-  destination: string;
-  startDate: string;
-  endDate: string;
-  companion: string;
-  preferences: string[];
-  budget: string;
-  pace: string;
-};
+type PlannerForm = TripPreferences;
 
 const initialForm: PlannerForm = {
   destination: "산토리니, 그리스",
   startDate: "2026-07-24",
   endDate: "2026-07-26",
   companion: "연인",
-  preferences: ["맛집 탐방", "카페", "사진 촬영"],
-  budget: "100만 원 ~ 180만 원",
+  interests: ["맛집 탐방", "카페", "사진 촬영"],
+  budgetPerPerson: "100만 원 ~ 180만 원",
   pace: "적당히",
 };
 
@@ -56,8 +49,8 @@ export default function PlannerPage() {
       form.startDate &&
       form.endDate &&
       form.companion &&
-      form.preferences.length > 0 &&
-      form.budget &&
+      form.interests.length > 0 &&
+      form.budgetPerPerson &&
       form.pace,
       ),
     [form],
@@ -69,12 +62,12 @@ export default function PlannerPage() {
 
   function togglePreference(preference: string) {
     setForm((current) => {
-      const exists = current.preferences.includes(preference);
+      const exists = current.interests.includes(preference);
       return {
         ...current,
-        preferences: exists
-          ? current.preferences.filter((item) => item !== preference)
-          : [...current.preferences, preference],
+        interests: exists
+          ? current.interests.filter((item) => item !== preference)
+          : [...current.interests, preference],
       };
     });
   }
@@ -210,7 +203,7 @@ export default function PlannerPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {preferenceOptions.map((option) => {
-                  const selected = form.preferences.includes(option);
+                  const selected = form.interests.includes(option);
                   return (
                     <button
                       key={option}
@@ -234,8 +227,8 @@ export default function PlannerPage() {
               <span className="mb-2 block text-sm font-black">1인 예산</span>
               <select
                 className="min-h-14 w-full rounded-2xl border border-[#e7e3ed] bg-[#fbfafd] px-4 outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[rgba(116,71,239,0.1)]"
-                value={form.budget}
-                onChange={(event) => updateField("budget", event.target.value)}
+                value={form.budgetPerPerson}
+                onChange={(event) => updateField("budgetPerPerson", event.target.value)}
               >
                 {budgetOptions.map((option) => (
                   <option key={option}>{option}</option>

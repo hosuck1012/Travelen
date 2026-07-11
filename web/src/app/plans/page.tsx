@@ -2,40 +2,26 @@
 
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
+import type { PlanId, TripPlan, TripPreferences } from "@/types/trip";
 
-type PlannerInput = {
-  destination: string;
-  startDate: string;
-  endDate: string;
-  companion: string;
-  preferences: string[];
-  budget: string;
-  pace: string;
-};
-
-type Plan = {
-  id: string;
-  tone: "relax" | "balance" | "active";
+type PlanCard = Pick<TripPlan, "id" | "title" | "budget" | "movement" | "tags"> & {
+  tone: PlanId;
   badge: string;
-  title: string;
   description: string;
-  budget: string;
-  movement: string;
   places: string[];
-  tags: string[];
 };
 
-const defaultInput: PlannerInput = {
+const defaultInput: TripPreferences = {
   destination: "산토리니, 그리스",
   startDate: "2026-07-24",
   endDate: "2026-07-26",
   companion: "연인",
-  preferences: ["맛집 탐방", "카페", "사진 촬영"],
-  budget: "100만 원 ~ 180만 원",
+  interests: ["맛집 탐방", "카페", "사진 촬영"],
+  budgetPerPerson: "100만 원 ~ 180만 원",
   pace: "적당히",
 };
 
-const plans: Plan[] = [
+const plans: PlanCard[] = [
   {
     id: "relax",
     tone: "relax",
@@ -89,18 +75,18 @@ const toneStyles = {
   },
 };
 
-function parsePlannerInput(raw: string | null): PlannerInput {
+function parsePlannerInput(raw: string | null): TripPreferences {
   if (!raw) return defaultInput;
 
   try {
-    const parsed = JSON.parse(raw) as Partial<PlannerInput>;
+    const parsed = JSON.parse(raw) as Partial<TripPreferences> & { preferences?: string[]; budget?: string };
     return {
       destination: parsed.destination || defaultInput.destination,
       startDate: parsed.startDate || defaultInput.startDate,
       endDate: parsed.endDate || defaultInput.endDate,
       companion: parsed.companion || defaultInput.companion,
-      preferences: parsed.preferences?.length ? parsed.preferences : defaultInput.preferences,
-      budget: parsed.budget || defaultInput.budget,
+      interests: parsed.interests?.length ? parsed.interests : parsed.preferences?.length ? parsed.preferences : defaultInput.interests,
+      budgetPerPerson: parsed.budgetPerPerson || parsed.budget || defaultInput.budgetPerPerson,
       pace: parsed.pace || defaultInput.pace,
     };
   } catch {
@@ -133,13 +119,13 @@ export default function PlansPage() {
       ["여행지", plannerInput.destination],
       ["기간", formatDateRange(plannerInput.startDate, plannerInput.endDate)],
       ["동행", plannerInput.companion],
-      ["예산", plannerInput.budget],
+      ["예산", plannerInput.budgetPerPerson],
       ["밀도", plannerInput.pace],
     ],
     [plannerInput],
   );
 
-  function saveSelectedPlan(plan: Plan) {
+  function saveSelectedPlan(plan: PlanCard) {
     sessionStorage.setItem(
       "tripmate.selectedPlan",
       JSON.stringify({
@@ -189,7 +175,7 @@ export default function PlansPage() {
               <div className="rounded-2xl bg-[#fbfafd] px-4 py-3 sm:col-span-2">
                 <div className="text-xs font-black text-[var(--primary)]">취향</div>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {plannerInput.preferences.map((preference) => (
+                  {plannerInput.interests.map((preference) => (
                     <span key={preference} className="rounded-full bg-[var(--primary-soft)] px-3 py-1 text-xs font-extrabold text-[var(--primary)]">
                       {preference}
                     </span>
