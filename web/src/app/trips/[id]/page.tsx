@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import { withNormalizedActivityCoordinates } from "@/lib/activity-coordinates";
+import GoogleMap from "./GoogleMap";
 import type {
   Activity,
   ActivityCategory,
@@ -42,6 +44,13 @@ const typeStyles: Record<ItemType, string> = {
   식당: "bg-[#fff0e7] text-[#b15929]",
   숙소: "bg-[#e9f7ef] text-[#237b4e]",
   이동: "bg-[#eef5ff] text-[#2f6da8]",
+};
+
+const santoriniMapBounds = {
+  north: 36.49,
+  south: 36.33,
+  west: 25.31,
+  east: 25.52,
 };
 
 const initialMessages: ChatMessage[] = [
@@ -536,13 +545,15 @@ const tripPlans: Record<PlanId, TripPlan> = {
 };
 
 function cloneTripPlan(plan: TripPlan): TripPlan {
+  const fallbackBounds = plan.destination.includes("산토리니") ? santoriniMapBounds : undefined;
+
   return {
     ...plan,
     tags: [...plan.tags],
     days: {
-      day1: { ...plan.days.day1, items: plan.days.day1.items.map((item) => ({ ...item, marker: { ...item.marker } })) },
-      day2: { ...plan.days.day2, items: plan.days.day2.items.map((item) => ({ ...item, marker: { ...item.marker } })) },
-      day3: { ...plan.days.day3, items: plan.days.day3.items.map((item) => ({ ...item, marker: { ...item.marker } })) },
+      day1: { ...plan.days.day1, items: plan.days.day1.items.map((item) => withNormalizedActivityCoordinates(item, fallbackBounds)) },
+      day2: { ...plan.days.day2, items: plan.days.day2.items.map((item) => withNormalizedActivityCoordinates(item, fallbackBounds)) },
+      day3: { ...plan.days.day3, items: plan.days.day3.items.map((item) => withNormalizedActivityCoordinates(item, fallbackBounds)) },
     },
   };
 }
@@ -635,46 +646,6 @@ function ScheduleList({ items }: { items: ScheduleItem[] }) {
         </article>
       ))}
     </div>
-  );
-}
-
-function MockMap({ day }: { day: TripPlan["days"][DayKey] }) {
-  return (
-    <section className="relative min-h-[520px] overflow-hidden rounded-[32px] border border-white bg-[linear-gradient(145deg,#e7f2fa_0%,#f8f7fb_42%,#e9e3ff_100%)] shadow-[var(--shadow)] lg:min-h-[720px]">
-      <div className="absolute left-[18%] top-[8%] h-[86%] w-[58%] rounded-[48%_52%_44%_56%] bg-[linear-gradient(180deg,#f7efe2,#cfe5d0_48%,#d8c7a3)] shadow-[inset_18px_-20px_0_rgba(80,66,109,0.08)]" />
-      <div className="absolute left-[41%] top-[13%] h-[73%] w-[18%] rotate-[9deg] rounded-full border-l-[10px] border-dashed border-white/95" />
-      <div className="absolute left-[22%] top-[55%] h-[14%] w-[17%] rounded-full bg-[#8eb5d6]/70 blur-[1px]" />
-      <div className="absolute right-4 top-4 z-10 grid gap-2">
-        {["＋", "⌖", "－"].map((control) => (
-          <button
-            key={control}
-            className="grid h-10 w-10 place-items-center rounded-xl border border-[#dce7ed] bg-white/90 text-sm font-black text-[#625d6d] shadow-[var(--shadow-sm)]"
-            type="button"
-            aria-label={`지도 컨트롤 ${control}`}
-          >
-            {control}
-          </button>
-        ))}
-      </div>
-
-      {day.items.map((item, index) => (
-        <div
-          key={`${item.time}-${item.title}-marker`}
-          className="absolute z-20 -translate-x-1/2 -translate-y-1/2"
-          style={{ left: item.marker.x, top: item.marker.y }}
-        >
-          <div className="grid h-10 w-10 place-items-center rounded-full border-4 border-white bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] text-sm font-black text-white shadow-[0_10px_25px_rgba(67,47,114,0.25)]">
-            {index + 1}
-          </div>
-        </div>
-      ))}
-
-      <div className="absolute inset-x-5 bottom-5 z-10 rounded-[22px] border border-white/80 bg-white/92 p-5 shadow-[var(--shadow-sm)] backdrop-blur">
-        <div className="text-xs font-black text-[var(--primary)]">Mock 지도</div>
-        <h2 className="mt-1 text-xl font-black">{day.area}</h2>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{day.route}</p>
-      </div>
-    </section>
   );
 }
 
@@ -1044,7 +1015,7 @@ export default function TripDetailPage() {
           </section>
 
           <div className={`${mobilePanel === "map" ? "block" : "hidden"} lg:sticky lg:top-8 lg:block`}>
-            <MockMap day={currentDay} />
+            <GoogleMap activities={currentDay.items} area={currentDay.area} route={currentDay.route} />
           </div>
 
           <div className={`${mobilePanel === "chat" ? "block" : "hidden"} lg:sticky lg:top-8 lg:block`}>

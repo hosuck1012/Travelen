@@ -11,6 +11,7 @@ import type {
   TripPlan,
   TripPreferences,
 } from "@/types/trip";
+import { withNormalizedActivityCoordinates } from "@/lib/activity-coordinates";
 
 const planIds: PlanId[] = ["relax", "balance", "active"];
 const companions: TripPreferences["companion"][] = ["혼자", "연인", "친구", "가족"];
@@ -52,7 +53,7 @@ function activity(
   x: string,
   y: string,
 ): Activity {
-  return { id, time, type, title, description, meta, cost, marker: { x, y } };
+  return withNormalizedActivityCoordinates({ id, time, type, title, description, meta, cost, marker: { x, y } });
 }
 
 function createDays(): Record<DayKey, TripDay> {
@@ -64,9 +65,9 @@ function createDays(): Record<DayKey, TripDay> {
       summary: "칼데라 풍경과 산토리니의 첫 노을을 만나는 날",
       route: "오늘 이동 약 12.4km · 차량 35분",
       items: [
-        activity("day1-1", "11:00", "이동", "공항에서 피라 이동", "숙소에 짐을 맡기고 여행을 시작합니다.", "차량 20분", "약 25,000원", "42%", "72%"),
+        activity("day1-1", "11:00", "이동", "강릉역 도착", "KTX 강릉역에서 여행을 시작합니다.", "도착", "예매 금액 별도", "42%", "72%"),
         activity("day1-2", "12:30", "식당", "피라 로컬 타베르나", "칼데라 전망과 함께 현지 점심을 즐깁니다.", "체류 1시간 20분", "약 35,000원", "45%", "61%"),
-        activity("day1-3", "15:00", "관광지", "이메로비글리 산책", "골목과 전망 포인트를 천천히 둘러봅니다.", "체류 2시간", "무료", "49%", "43%"),
+        activity("day1-3", "15:00", "관광지", "안목해변 카페거리", "해변 산책과 카페 휴식을 함께 즐깁니다.", "체류 2시간", "약 18,000원", "49%", "43%"),
         activity("day1-4", "19:00", "숙소", "칼데라 뷰 호텔", "숙소에서 노을을 감상하며 휴식합니다.", "1박", "포함", "53%", "31%"),
       ],
     },
@@ -80,7 +81,7 @@ function createDays(): Record<DayKey, TripDay> {
         activity("day2-1", "09:00", "관광지", "아크로티리 유적", "고대 도시 유적을 관람합니다.", "체류 1시간 30분", "약 18,000원", "31%", "78%"),
         activity("day2-2", "11:30", "관광지", "레드 비치", "붉은 절벽과 해변 풍경을 감상합니다.", "체류 1시간", "무료", "27%", "68%"),
         activity("day2-3", "13:30", "식당", "해변 타베르나 점심", "해산물 중심의 점심을 즐깁니다.", "체류 1시간", "약 40,000원", "36%", "54%"),
-        activity("day2-4", "16:30", "관광지", "오이아 마을과 노을", "골목을 둘러보고 대표 노을 포인트를 찾습니다.", "체류 3시간", "무료", "57%", "20%"),
+        activity("day2-4", "16:30", "관광지", "주문진 해변과 수산시장", "주문진 바다와 시장 주변을 여유롭게 둘러봅니다.", "체류 3시간", "무료", "57%", "20%"),
         activity("day2-5", "20:30", "이동", "숙소 복귀", "호텔로 돌아가 하루를 마무리합니다.", "차량 25분", "약 30,000원", "50%", "39%"),
       ],
     },
