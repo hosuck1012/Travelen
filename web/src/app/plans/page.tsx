@@ -2,60 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
-import type { PlanId, TripPlan, TripPreferences } from "@/types/trip";
+import type { GeneratePlansResponse, PlanId, TripPlan } from "@/types/trip";
 
-type PlanCard = Pick<TripPlan, "id" | "title" | "budget" | "movement" | "tags"> & {
-  tone: PlanId;
-  badge: string;
-  description: string;
-  places: string[];
-};
-
-const defaultInput: TripPreferences = {
-  destination: "산토리니, 그리스",
-  startDate: "2026-07-24",
-  endDate: "2026-07-26",
-  companion: "연인",
-  interests: ["맛집 탐방", "카페", "사진 촬영"],
-  budgetPerPerson: "100만 원 ~ 180만 원",
-  pace: "적당히",
-};
-
-const plans: PlanCard[] = [
-  {
-    id: "relax",
-    tone: "relax",
-    badge: "휴식형",
-    title: "느긋한 섬 휴식",
-    description: "해변과 카페에 오래 머물며 노을 시간을 넉넉히 확보한 여유로운 일정입니다.",
-    budget: "1인 약 124만 원",
-    movement: "낮음 · 하루 2~3곳",
-    places: ["페리사 해변", "피라 마을", "오이아 노을"],
-    tags: ["휴양", "카페", "노을", "이동 적음"],
-  },
-  {
-    id: "balance",
-    tone: "balance",
-    badge: "균형형",
-    title: "감성과 관광의 균형",
-    description: "대표 관광지, 맛집, 자유 시간을 고르게 배치한 가장 안정적인 추천 플랜입니다.",
-    budget: "1인 약 148만 원",
-    movement: "보통 · 하루 3~4곳",
-    places: ["오이아 마을", "이메로비글리", "현지 맛집 거리"],
-    tags: ["AI 추천", "맛집", "사진", "적당한 이동"],
-  },
-  {
-    id: "active",
-    tone: "active",
-    badge: "활동형",
-    title: "섬 구석구석 액티브",
-    description: "하이킹과 보트 투어, 로컬 마을 탐방을 촘촘히 담은 활동적인 일정입니다.",
-    budget: "1인 약 176만 원",
-    movement: "높음 · 하루 4~6곳",
-    places: ["스카로스 바위", "화산섬 투어", "아크로티리 유적"],
-    tags: ["액티비티", "로컬 체험", "하이킹", "이동 많음"],
-  },
-];
+const planBadges: Record<PlanId, string> = { relax: "휴식형", balance: "균형형", active: "활동형" };
 
 const toneStyles = {
   relax: {
@@ -75,31 +24,22 @@ const toneStyles = {
   },
 };
 
-function parsePlannerInput(raw: string | null): TripPreferences {
-  if (!raw) return defaultInput;
-
+function parseGeneratedPlans(raw: string): GeneratePlansResponse | null {
+  if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as Partial<TripPreferences> & { preferences?: string[]; budget?: string };
-    return {
-      destination: parsed.destination || defaultInput.destination,
-      startDate: parsed.startDate || defaultInput.startDate,
-      endDate: parsed.endDate || defaultInput.endDate,
-      companion: parsed.companion || defaultInput.companion,
-      interests: parsed.interests?.length ? parsed.interests : parsed.preferences?.length ? parsed.preferences : defaultInput.interests,
-      budgetPerPerson: parsed.budgetPerPerson || parsed.budget || defaultInput.budgetPerPerson,
-      pace: parsed.pace || defaultInput.pace,
-    };
+    const parsed = JSON.parse(raw) as GeneratePlansResponse;
+    return parsed.preferences && Array.isArray(parsed.plans) && parsed.plans.length > 0 ? parsed : null;
   } catch {
-    return defaultInput;
+    return null;
   }
 }
 
-function getPlannerInputSnapshot() {
+function getGeneratedPlansSnapshot() {
   if (typeof window === "undefined") return "";
-  return window.sessionStorage.getItem("tripmate.plannerInput") ?? "";
+  return window.sessionStorage.getItem("tripmate.generatedPlans") ?? "";
 }
 
-function subscribePlannerInput(onStoreChange: () => void) {
+function subscribeGeneratedPlans(onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {};
   window.addEventListener("storage", onStoreChange);
   return () => window.removeEventListener("storage", onStoreChange);
@@ -111,21 +51,36 @@ function formatDateRange(startDate: string, endDate: string) {
 }
 
 export default function PlansPage() {
-  const plannerInputSnapshot = useSyncExternalStore(subscribePlannerInput, getPlannerInputSnapshot, () => "");
-  const plannerInput = useMemo(() => parsePlannerInput(plannerInputSnapshot), [plannerInputSnapshot]);
+  const generatedPlansSnapshot = useSyncExternalStore(subscribeGeneratedPlans, getGeneratedPlansSnapshot, () => "");
+  const generatedPlans = useMemo(() => parseGeneratedPlans(generatedPlansSnapshot), [generatedPlansSnapshot]);
 
-  const conditionItems = useMemo(
-    () => [
-      ["여행지", plannerInput.destination],
-      ["기간", formatDateRange(plannerInput.startDate, plannerInput.endDate)],
-      ["동행", plannerInput.companion],
-      ["예산", plannerInput.budgetPerPerson],
-      ["밀도", plannerInput.pace],
-    ],
-    [plannerInput],
-  );
+  if (!generatedPlans) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[var(--background)] px-5 py-12 text-[var(--foreground)]">
+        <section className="w-full max-w-2xl rounded-[32px] border border-white bg-white/90 p-8 text-center shadow-[var(--shadow)] md:p-12">
+          <p className="text-sm font-black text-[var(--primary)]">여행 플랜 없음</p>
+          <h1 className="mt-3 text-3xl font-black md:text-4xl">먼저 여행 조건을 입력해 주세요.</h1>
+          <p className="mt-4 leading-7 text-[var(--muted)]">저장된 플랜이 없거나 만료되었습니다. 조건을 입력하면 새로운 플랜 3개를 준비합니다.</p>
+          <Link className="mt-7 inline-flex min-h-13 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] px-7 text-sm font-extrabold text-white" href="/planner">
+            여행 조건 입력하기
+          </Link>
+        </section>
+      </main>
+    );
+  }
 
-  function saveSelectedPlan(plan: PlanCard) {
+  const plannerInput = generatedPlans.preferences;
+  const plans = generatedPlans.plans;
+
+  const conditionItems = [
+    ["여행지", plannerInput.destination],
+    ["기간", formatDateRange(plannerInput.startDate, plannerInput.endDate)],
+    ["동행", plannerInput.companion],
+    ["예산", plannerInput.budgetPerPerson],
+    ["밀도", plannerInput.pace],
+  ];
+
+  function saveSelectedPlan(plan: TripPlan) {
     sessionStorage.setItem(
       "tripmate.selectedPlan",
       JSON.stringify({
@@ -187,7 +142,10 @@ export default function PlansPage() {
 
           <div className="mt-10 grid gap-5 lg:grid-cols-3">
             {plans.map((plan) => {
-              const styles = toneStyles[plan.tone];
+              const styles = toneStyles[plan.id];
+              const places = Array.from(
+                new Set(Object.values(plan.days).flatMap((day) => day.items.filter((item) => item.type === "관광지").map((item) => item.title))),
+              ).slice(0, 3);
               return (
                 <article
                   key={plan.id}
@@ -196,7 +154,7 @@ export default function PlansPage() {
                   <div className={`relative h-52 overflow-hidden ${styles.image}`}>
                     <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,transparent,rgba(23,21,31,0.2))]" />
                     <span className="absolute left-5 top-5 rounded-full bg-white/90 px-4 py-2 text-sm font-black text-[#312d3a] shadow-[var(--shadow-sm)]">
-                      {plan.badge}
+                      {planBadges[plan.id]}
                     </span>
                   </div>
 
@@ -210,7 +168,7 @@ export default function PlansPage() {
                       </div>
                     </div>
 
-                    <p className="mt-5 min-h-16 text-sm leading-6 text-[var(--muted)]">{plan.description}</p>
+                    <p className="mt-5 min-h-16 text-sm leading-6 text-[var(--muted)]">{plan.subtitle}</p>
 
                     <div className="mt-6 grid gap-3 text-sm">
                       <div className="rounded-2xl bg-[#fbfafd] p-4">
@@ -226,7 +184,7 @@ export default function PlansPage() {
                     <div className="mt-6">
                       <div className="text-xs font-black text-[var(--muted)]">핵심 장소</div>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {plan.places.map((place) => (
+                        {places.map((place) => (
                           <span key={place} className="rounded-full bg-[#f6f4f8] px-3 py-2 text-xs font-extrabold text-[#625d6d]">
                             {place}
                           </span>

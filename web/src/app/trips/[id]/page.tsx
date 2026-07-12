@@ -11,12 +11,10 @@ import type {
   ModifyItineraryRequest,
   ModifyItineraryResponse,
   PlanId,
-  TripDay,
   TripPlan,
 } from "@/types/trip";
 
 type ScheduleItem = Activity;
-type DaySchedule = TripDay;
 type ItemType = ActivityCategory;
 
 type ChatMessage = {
@@ -545,74 +543,6 @@ function cloneTripPlan(plan: TripPlan): TripPlan {
   };
 }
 
-function shouldApplyRelaxedDay2Request(request: string) {
-  const normalized = request.replace(/\s+/g, "");
-  const mentionsDay2 =
-    normalized.includes("둘째날") ||
-    normalized.includes("둘째") ||
-    normalized.includes("2일차") ||
-    normalized.toLowerCase().includes("day2");
-  const asksForRelaxedPace =
-    normalized.includes("여유") ||
-    normalized.includes("느긋") ||
-    normalized.includes("천천히") ||
-    normalized.includes("널널");
-
-  return mentionsDay2 || asksForRelaxedPace;
-}
-
-function createRelaxedDay2(trip: TripPlan): DaySchedule {
-  const currentDay2 = trip.days.day2;
-  const busyItem =
-    currentDay2.items.find((item) => item.title.includes("레드 비치")) ??
-    currentDay2.items.find((item) => item.title.includes("화산섬")) ??
-    currentDay2.items.find((item) => item.type === "관광지") ??
-    currentDay2.items[currentDay2.items.length - 2];
-
-  const cafeItem: ScheduleItem = {
-    time: "14:30",
-    type: "식당",
-    title: "오이아 카페 자유시간",
-    description: "AI 수정 반영 · 카페 체류 시간을 2시간으로 늘렸습니다.",
-    meta: "체류 2시간",
-    cost: "약 20,000원",
-    marker: { x: "31%", y: "18%" },
-  };
-
-  const compactItems = currentDay2.items
-    .filter((item) => item !== busyItem)
-    .map((item) => {
-      const isCafeOrLunchStop =
-        item.title.includes("카페") ||
-        item.title.includes("점심") ||
-        item.description.includes("점심") ||
-        item.title.includes("타베르나");
-
-      if (isCafeOrLunchStop) {
-        return { ...cafeItem, marker: { ...cafeItem.marker } };
-      }
-
-      return { ...item, marker: { ...item.marker } };
-    });
-
-  const hasCafeItem = compactItems.some((item) => item.title.includes("카페"));
-  const relaxedItems = hasCafeItem
-    ? compactItems
-    : [
-        ...compactItems.slice(0, Math.max(compactItems.length - 1, 1)),
-        { ...cafeItem, marker: { ...cafeItem.marker } },
-        ...compactItems.slice(Math.max(compactItems.length - 1, 1)),
-      ];
-
-  return {
-    label: currentDay2.label,
-    area: "이메로비글리 · 오이아",
-    summary: "둘째 날은 이동을 줄이고 카페와 자유 시간을 늘린 여유로운 일정입니다.",
-    route: "오늘 이동 약 16.8km · 차량 44분",
-    items: relaxedItems,
-  };
-}
-
 function isPlanId(id: string): id is PlanId {
   return id === "relax" || id === "balance" || id === "active";
 }
@@ -727,14 +657,18 @@ function ChatPanel({
   messages,
   inputValue,
   isResponding,
+  errorMessage,
   onInputChange,
   onSubmit,
+  onRetry,
 }: {
   messages: ChatMessage[];
   inputValue: string;
   isResponding: boolean;
+  errorMessage: string | null;
   onInputChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onRetry: () => void;
 }) {
   const messagesViewportRef = useRef<HTMLDivElement>(null);
 
@@ -746,7 +680,7 @@ function ChatPanel({
       top: viewport.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages, isResponding]);
+  }, [messages, isResponding, errorMessage]);
 
   return (
     <aside className="flex h-[calc(100vh-10rem)] min-h-[480px] flex-col overflow-hidden rounded-[32px] border border-white bg-[#fcfbfd] shadow-[var(--shadow)] lg:h-[calc(100vh-8rem)] lg:max-h-[720px] lg:min-h-[620px]">
@@ -788,6 +722,14 @@ function ChatPanel({
             일정을 다시 구성하는 중...
           </div>
         ) : null}
+        {errorMessage ? (
+          <div className="self-start rounded-[18px] border border-[#f0cfc7] bg-[#fff7f4] px-4 py-3 text-sm text-[#9b4433]" role="alert">
+            <p className="font-bold leading-6">{errorMessage}</p>
+            <button className="mt-2 rounded-full border border-[#dcb3a9] bg-white px-3 py-1.5 text-xs font-black" type="button" onClick={onRetry} disabled={isResponding}>
+              다시 시도
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="border-t border-[var(--line)] bg-white p-4">
@@ -822,6 +764,9 @@ export default function TripDetailPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [chatInput, setChatInput] = useState("");
   const [isResponding, setIsResponding] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [retryMessage, setRetryMessage] = useState<string | null>(null);
+  const requestInFlightRef = useRef(false);
 
   if (!isPlanId(requestedId)) {
     return <InvalidPlanScreen id={requestedId} />;
@@ -837,93 +782,71 @@ export default function TripDetailPage() {
     ["숙소", trip.hotel],
   ];
 
-  function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function requestItineraryModification(message: string, appendUserMessage: boolean) {
+    if (!message || requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
 
-    const request = chatInput.trim();
-    if (!request || isResponding) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now(),
-      role: "user",
-      text: request,
-    };
     const modificationRequest: ModifyItineraryRequest = {
       planId: trip.id,
-      message: request,
+      message,
       currentItinerary: Object.values(trip.days),
     };
-    const shouldRelaxDay2 = shouldApplyRelaxedDay2Request(modificationRequest.message);
-    const previousDay2 = trip.days.day2;
-    const nextDay2 = createRelaxedDay2(trip);
-    const nextTrip: TripPlan = {
-      ...trip,
-      days: {
-        ...trip.days,
-        day2: {
-          ...nextDay2,
-          items: nextDay2.items.map((item) => ({ ...item, marker: { ...item.marker } })),
-        },
-      },
-    };
-    const modificationResponse: ModifyItineraryResponse = {
-      plan: shouldRelaxDay2 ? nextTrip : trip,
-      changes: shouldRelaxDay2
-        ? [
-            {
-              dayId: "day2",
-              summary: "둘째 날의 이동을 줄이고 카페 체류 시간을 늘렸습니다.",
-              before: [
-                `${previousDay2.items.length}개 일정 · ${previousDay2.route}`,
-                previousDay2.items.map((item) => item.title).join(" → "),
-              ],
-              after: [
-                `${nextDay2.items.length}개 일정 · ${nextDay2.route}`,
-                nextDay2.items.map((item) => item.title).join(" → "),
-              ],
-            },
-          ]
-        : [],
-      message: shouldRelaxDay2
-        ? "좋아요. 둘째 날 이동을 줄이고 카페와 휴식 시간을 늘린 일정으로 바꿨어요."
-        : "요청을 확인했어요. 현재 목업에서는 둘째 날을 여유롭게 바꾸는 예시 수정만 실제 일정에 반영됩니다.",
-      modifiedAt: new Date().toISOString(),
-    };
 
-    setMessages((current) => [...current, userMessage]);
-    setChatInput("");
-    setIsResponding(true);
-
-    if (shouldRelaxDay2) {
-      setTrip(cloneTripPlan(modificationResponse.plan));
-      setActiveDay("day2");
-      setMobilePanel("schedule");
+    if (appendUserMessage) {
+      setMessages((current) => [...current, { id: Date.now(), role: "user", text: message }]);
+      setChatInput("");
     }
+    setIsResponding(true);
+    setChatError(null);
 
-    window.setTimeout(() => {
-      const aiMessage: ChatMessage = shouldRelaxDay2
-        ? {
-            id: Date.now() + 1,
-            role: "ai",
-            text: modificationResponse.message,
-            change: {
-              before: modificationResponse.changes[0].before,
-              after: modificationResponse.changes[0].after,
-            },
-          }
-        : {
-            id: Date.now() + 1,
-            role: "ai",
-            text: modificationResponse.message,
-            change: {
-              before: ["현재 mock 일정 유지"],
-              after: ["다음 단계에서 요청 유형별 부분 수정으로 확장 예정"],
-            },
-          };
+    try {
+      const response = await fetch("/api/itinerary/modify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(modificationRequest),
+      });
+      const data = (await response.json()) as ModifyItineraryResponse | { error?: string };
 
-      setMessages((current) => [...current, aiMessage]);
+      if (!response.ok) {
+        throw new Error("error" in data && data.error ? data.error : "일정을 수정하지 못했습니다.");
+      }
+
+      const modificationResponse = data as ModifyItineraryResponse;
+      const changedDay = modificationResponse.changes[0]?.dayId;
+      setTrip(cloneTripPlan(modificationResponse.plan));
+      setMessages((current) => [
+        ...current,
+        {
+          id: Date.now() + 1,
+          role: "ai",
+          text: modificationResponse.message,
+          change: modificationResponse.changes.length
+            ? {
+                before: modificationResponse.changes.flatMap((change) => change.before),
+                after: modificationResponse.changes.flatMap((change) => change.after),
+              }
+            : undefined,
+        },
+      ]);
+      if (changedDay) setActiveDay(changedDay);
+      setMobilePanel("schedule");
+      setRetryMessage(null);
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      setRetryMessage(message);
+    } finally {
+      requestInFlightRef.current = false;
       setIsResponding(false);
-    }, 700);
+    }
+  }
+
+  function handleChatSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void requestItineraryModification(chatInput.trim(), true);
+  }
+
+  function handleRetry() {
+    if (retryMessage) void requestItineraryModification(retryMessage, false);
   }
 
   return (
@@ -1025,8 +948,10 @@ export default function TripDetailPage() {
               messages={messages}
               inputValue={chatInput}
               isResponding={isResponding}
+              errorMessage={chatError}
               onInputChange={setChatInput}
               onSubmit={handleChatSubmit}
+              onRetry={handleRetry}
             />
           </div>
         </div>

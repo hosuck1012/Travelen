@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
-import type { TripPreferences } from "@/types/trip";
+import type { GeneratePlansResponse, TripPreferences } from "@/types/trip";
 
 const companionOptions: TripPreferences["companion"][] = ["혼자", "연인", "친구", "가족"];
 const preferenceOptions = [
@@ -41,6 +41,8 @@ const initialForm: PlannerForm = {
 export default function PlannerPage() {
   const router = useRouter();
   const [form, setForm] = useState<PlannerForm>(initialForm);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const canSubmit = useMemo(
     () =>
@@ -72,18 +74,32 @@ export default function PlannerPage() {
     });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || isSubmitting) return;
 
-    sessionStorage.setItem(
-      "tripmate.plannerInput",
-      JSON.stringify({
-        ...form,
-        savedAt: new Date().toISOString(),
-      }),
-    );
-    router.push("/plans");
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const response = await fetch("/api/plans/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form satisfies TripPreferences),
+      });
+      const data = (await response.json()) as GeneratePlansResponse | { error?: string };
+
+      if (!response.ok) {
+        throw new Error("error" in data && data.error ? data.error : "여행 플랜을 만들지 못했습니다.");
+      }
+
+      const generatedPlans = data as GeneratePlansResponse;
+      sessionStorage.setItem("tripmate.generatedPlans", JSON.stringify(generatedPlans));
+      router.push("/plans");
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "요청 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -263,17 +279,27 @@ export default function PlannerPage() {
           </div>
 
           <div className="mt-8 flex flex-col gap-3 border-t border-[var(--line)] pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-bold text-[var(--muted)]">
-              제출하면 입력값만 임시 저장되고, 아직 API는 호출하지 않습니다.
-            </p>
+            <p className="text-sm font-bold text-[var(--muted)]">입력한 조건으로 비교할 여행 플랜 3개를 준비합니다.</p>
             <button
               className="inline-flex min-h-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] px-7 text-base font-extrabold text-white shadow-[0_14px_34px_rgba(116,71,239,0.28)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
               type="submit"
-              disabled={!canSubmit}
+              disabled={!canSubmit || isSubmitting}
             >
-              여행 초안 만들기
+              {isSubmitting ? "여행 플랜 준비 중..." : "여행 초안 만들기"}
             </button>
           </div>
+          {submitError ? (
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#f0cfc7] bg-[#fff7f4] p-4 sm:flex-row sm:items-center sm:justify-between" role="alert">
+              <p className="text-sm font-bold text-[#9b4433]">{submitError}</p>
+              <button
+                className="shrink-0 rounded-full border border-[#dcb3a9] bg-white px-4 py-2 text-sm font-black text-[#9b4433] disabled:opacity-50"
+                type="submit"
+                disabled={isSubmitting}
+              >
+                다시 시도
+              </button>
+            </div>
+          ) : null}
         </form>
       </section>
     </main>
