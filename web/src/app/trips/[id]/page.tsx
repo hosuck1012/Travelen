@@ -100,12 +100,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function searchMyRealTripProducts(destination: string): Promise<MyRealTripProduct[]> {
-  const cacheKey = destination.trim().toLocaleLowerCase("ko-KR");
+function searchMyRealTripProducts(preferences: TripPreferences): Promise<MyRealTripProduct[]> {
+  const searchParams = new URLSearchParams({
+    destination: preferences.destination,
+    startDate: preferences.startDate,
+    endDate: preferences.endDate,
+    companion: preferences.companion,
+    limit: "3",
+  });
+  preferences.interests.forEach((style) => searchParams.append("travelStyles", style));
+  const cacheKey = searchParams.toString();
   const cached = myRealTripProductCache.get(cacheKey);
   if (cached) return cached;
 
-  const request = fetch(`/api/myrealtrip/search?destination=${encodeURIComponent(destination)}&limit=3`, { cache: "no-store" })
+  const request = fetch(`/api/myrealtrip/search?${searchParams.toString()}`, { cache: "no-store" })
     .then(async (response) => {
       if (!response.ok) throw new Error("MyRealTrip search failed");
       const payload: unknown = await response.json();
@@ -1029,6 +1037,7 @@ export default function TripDetailPage() {
     destination: "",
     products: [],
   });
+  const [recommendationPreferences, setRecommendationPreferences] = useState<TripPreferences | null>(null);
   const requestInFlightRef = useRef(false);
   const itineraryRequestRef = useRef<string | null>(null);
   const placeLookupAttemptedRef = useRef(new Set<string>());
@@ -1090,6 +1099,8 @@ export default function TripDetailPage() {
         // The fallback above keeps direct links usable when session data is invalid.
       }
     }
+    const currentPreferences = requestBody.preferences;
+    queueMicrotask(() => setRecommendationPreferences(currentPreferences));
 
     const requestKey = `${requestedId}:${selectionKey}:${loadAttempt}`;
     if (itineraryRequestRef.current === requestKey) return;
@@ -1131,25 +1142,33 @@ export default function TripDetailPage() {
       });
   }, [loadAttempt, requestedId]);
 
-  const recommendationDestination = trip?.destination ?? "";
+  const recommendationKey = recommendationPreferences
+    ? JSON.stringify({
+        destination: recommendationPreferences.destination,
+        startDate: recommendationPreferences.startDate,
+        endDate: recommendationPreferences.endDate,
+        companion: recommendationPreferences.companion,
+        travelStyles: recommendationPreferences.interests,
+      })
+    : "";
 
   useEffect(() => {
-    if (!recommendationDestination) return;
+    if (!recommendationPreferences || !recommendationKey) return;
 
     let cancelled = false;
 
-    void searchMyRealTripProducts(recommendationDestination)
+    void searchMyRealTripProducts(recommendationPreferences)
       .then((products) => {
-        if (!cancelled) setRecommendations({ destination: recommendationDestination, products: products.slice(0, 3) });
+        if (!cancelled) setRecommendations({ destination: recommendationKey, products: products.slice(0, 3) });
       })
       .catch(() => {
-        if (!cancelled) setRecommendations({ destination: recommendationDestination, products: [] });
+        if (!cancelled) setRecommendations({ destination: recommendationKey, products: [] });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [recommendationDestination]);
+  }, [recommendationKey, recommendationPreferences]);
 
   useEffect(() => {
     if (!trip) return;
@@ -1391,8 +1410,8 @@ export default function TripDetailPage() {
 
         <MyRealTripRecommendations
           destination={trip.destination}
-          products={recommendations.destination === trip.destination ? recommendations.products : []}
-          isLoading={recommendations.destination !== trip.destination}
+          products={recommendations.destination === recommendationKey ? recommendations.products : []}
+          isLoading={!recommendationKey || recommendations.destination !== recommendationKey}
         />
       </section>
     </main>
