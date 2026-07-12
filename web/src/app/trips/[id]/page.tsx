@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { withNormalizedActivityCoordinates } from "@/lib/activity-coordinates";
-import GoogleMap from "./GoogleMap";
+import KakaoMap from "./KakaoMap";
 import type {
   Activity,
   ActivityCategory,
@@ -1015,7 +1015,7 @@ export default function TripDetailPage() {
           </section>
 
           <div className={`${mobilePanel === "map" ? "block" : "hidden"} lg:sticky lg:top-8 lg:block`}>
-            <GoogleMap activities={currentDay.items} area={currentDay.area} route={currentDay.route} />
+            <KakaoMap activities={currentDay.items} area={currentDay.area} route={currentDay.route} />
           </div>
 
           <div className={`${mobilePanel === "chat" ? "block" : "hidden"} lg:sticky lg:top-8 lg:block`}>
