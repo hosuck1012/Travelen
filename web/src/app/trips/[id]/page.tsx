@@ -23,6 +23,17 @@ import type {
 type ScheduleItem = Activity;
 type ItemType = ActivityCategory;
 
+type MyRealTripProduct = {
+  id?: string;
+  title?: string;
+  price?: string;
+  currency?: string;
+  imageUrl?: string;
+  rating?: number;
+  location?: string;
+  productUrl?: string;
+};
+
 type PlaceSearchResult = {
   id: string;
   name: string;
@@ -61,6 +72,7 @@ const dayTabs: { key: DayKey; label: string }[] = [
 const tripDayKeys: DayKey[] = ["day1", "day2", "day3"];
 const itineraryCacheVersion = 3;
 const placeSearchCache = new Map<string, Promise<PlaceSearchResult | null>>();
+const myRealTripProductCache = new Map<string, Promise<MyRealTripProduct[]>>();
 
 const typeStyles: Record<ItemType, string> = {
   관광지: "bg-[var(--primary-soft)] text-[var(--primary)]",
@@ -86,6 +98,27 @@ const initialMessages: ChatMessage[] = [
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function searchMyRealTripProducts(destination: string): Promise<MyRealTripProduct[]> {
+  const cacheKey = destination.trim().toLocaleLowerCase("ko-KR");
+  const cached = myRealTripProductCache.get(cacheKey);
+  if (cached) return cached;
+
+  const request = fetch(`/api/myrealtrip/search?destination=${encodeURIComponent(destination)}&limit=3`, { cache: "no-store" })
+    .then(async (response) => {
+      if (!response.ok) throw new Error("MyRealTrip search failed");
+      const payload: unknown = await response.json();
+      if (!isRecord(payload) || !Array.isArray(payload.products)) throw new Error("Invalid MyRealTrip response");
+      return payload.products.filter(isRecord) as MyRealTripProduct[];
+    })
+    .catch((error) => {
+      myRealTripProductCache.delete(cacheKey);
+      throw error;
+    });
+
+  myRealTripProductCache.set(cacheKey, request);
+  return request;
 }
 
 function normalizePlaceCoordinate(value: unknown, min: number, max: number): number | null {
@@ -810,6 +843,73 @@ function ScheduleList({ items, isPlaceLoading }: { items: ScheduleItem[]; isPlac
   );
 }
 
+function MyRealTripRecommendations({
+  destination,
+  products,
+  isLoading,
+}: {
+  destination: string;
+  products: MyRealTripProduct[];
+  isLoading: boolean;
+}) {
+  return (
+    <section className="mt-6 rounded-[28px] border border-white bg-white/85 p-5 shadow-[var(--shadow-sm)] md:p-7">
+      <div className="mb-5">
+        <div className="text-sm font-black text-[var(--primary)]">마이리얼트립 추천</div>
+        <h2 className="mt-2 text-2xl font-black">{destination}에서 즐길 수 있는 상품</h2>
+      </div>
+
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-3" aria-label="추천 상품을 불러오는 중">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="overflow-hidden rounded-[24px] border border-[var(--line)] bg-white">
+              <div className="aspect-[4/3] animate-pulse bg-[#eeeaf5]" />
+              <div className="space-y-3 p-5">
+                <div className="h-5 w-4/5 animate-pulse rounded bg-[#eeeaf5]" />
+                <div className="h-4 w-2/5 animate-pulse rounded bg-[#f3f0f8]" />
+                <div className="h-5 w-1/3 animate-pulse rounded bg-[#eeeaf5]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : products.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-3">
+          {products.map((product, index) => (
+            <article key={product.id ?? product.productUrl ?? index} className="flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-[var(--line)] bg-white shadow-[var(--shadow-sm)]">
+              {product.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className="aspect-[4/3] w-full object-cover" src={product.imageUrl} alt={product.title ?? "마이리얼트립 추천 상품"} />
+              ) : null}
+              <div className="flex flex-1 flex-col p-5">
+                {product.location ? <div className="text-xs font-black text-[var(--primary)]">{product.location}</div> : null}
+                {product.title ? <h3 className="mt-2 line-clamp-2 text-lg font-black leading-7 text-[#17151f]">{product.title}</h3> : null}
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                  {typeof product.rating === "number" ? <span className="font-black text-[#625d6d]">★ {product.rating}</span> : null}
+                  {product.price ? <span className="font-black text-[var(--primary)]">{product.price}</span> : null}
+                </div>
+                {product.productUrl ? (
+                  <a
+                    className="mt-5 inline-flex min-h-11 items-center justify-center self-start rounded-full bg-[var(--primary)] px-5 text-sm font-black text-white transition hover:bg-[var(--primary-2)]"
+                    href={product.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    상품 보기 ↗
+                  </a>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-[20px] border border-dashed border-[#dcd4eb] bg-[#fbfafd] px-5 py-10 text-center text-sm font-bold text-[var(--muted)]">
+          현재 추천할 수 있는 상품이 없습니다
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ChatPanel({
   messages,
   inputValue,
@@ -925,6 +1025,10 @@ export default function TripDetailPage() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
   const [placeLoadingByKey, setPlaceLoadingByKey] = useState<Record<string, boolean>>({});
+  const [recommendations, setRecommendations] = useState<{ destination: string; products: MyRealTripProduct[] }>({
+    destination: "",
+    products: [],
+  });
   const requestInFlightRef = useRef(false);
   const itineraryRequestRef = useRef<string | null>(null);
   const placeLookupAttemptedRef = useRef(new Set<string>());
@@ -950,28 +1054,6 @@ export default function TripDetailPage() {
 
   useEffect(() => {
     if (!isPlanId(requestedId)) return;
-    const requestKey = `${requestedId}:${loadAttempt}`;
-    if (itineraryRequestRef.current === requestKey) return;
-    itineraryRequestRef.current = requestKey;
-    setItineraryError(null);
-
-    const cacheKey = `tripmate.generatedItinerary.v2.${requestedId}`;
-    if (loadAttempt === 0) {
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
-        try {
-          const response = JSON.parse(cached) as GenerateItineraryResponse & { mapDataVersion?: number };
-          if (response.mapDataVersion === itineraryCacheVersion && response.plan?.id === requestedId) {
-            queueMicrotask(() => setTrip(cloneTripPlan(response.plan)));
-            return;
-          }
-          sessionStorage.removeItem(cacheKey);
-        } catch {
-          sessionStorage.removeItem(cacheKey);
-        }
-      }
-    }
-
     const fallback = tripPlans[requestedId];
     const fallbackPlan: PlanSummary = {
       id: fallback.id,
@@ -995,13 +1077,40 @@ export default function TripDetailPage() {
       pace: requestedId === "relax" ? "여유롭게" : requestedId === "active" ? "알차게" : "적당히",
     };
     let requestBody: GenerateItineraryRequest = { plan: fallbackPlan, preferences: fallbackPreferences };
+    let selectionKey = "fallback";
     const selected = sessionStorage.getItem("tripmate.selectedPlan");
     if (selected) {
       try {
         const parsed = JSON.parse(selected) as GenerateItineraryRequest & { selectedAt?: string };
-        if (parsed.plan?.id === requestedId && parsed.preferences) requestBody = { plan: parsed.plan, preferences: parsed.preferences };
+        if (parsed.plan?.id === requestedId && parsed.preferences) {
+          requestBody = { plan: parsed.plan, preferences: parsed.preferences };
+          selectionKey = parsed.selectedAt ?? parsed.preferences.destination;
+        }
       } catch {
         // The fallback above keeps direct links usable when session data is invalid.
+      }
+    }
+
+    const requestKey = `${requestedId}:${selectionKey}:${loadAttempt}`;
+    if (itineraryRequestRef.current === requestKey) return;
+    itineraryRequestRef.current = requestKey;
+    setItineraryError(null);
+
+    const cacheKey = `tripmate.generatedItinerary.v3.${requestedId}.${encodeURIComponent(selectionKey)}`;
+    if (loadAttempt === 0) {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const response = JSON.parse(cached) as GenerateItineraryResponse & { mapDataVersion?: number };
+          const matchesDestination = response.plan?.destination === requestBody.preferences.destination;
+          if (response.mapDataVersion === itineraryCacheVersion && response.plan?.id === requestedId && matchesDestination) {
+            queueMicrotask(() => setTrip(cloneTripPlan(response.plan)));
+            return;
+          }
+          sessionStorage.removeItem(cacheKey);
+        } catch {
+          sessionStorage.removeItem(cacheKey);
+        }
       }
     }
 
@@ -1021,6 +1130,26 @@ export default function TripDetailPage() {
         setItineraryError(error instanceof Error ? error.message : "상세 일정 생성 중 오류가 발생했습니다.");
       });
   }, [loadAttempt, requestedId]);
+
+  const recommendationDestination = trip?.destination ?? "";
+
+  useEffect(() => {
+    if (!recommendationDestination) return;
+
+    let cancelled = false;
+
+    void searchMyRealTripProducts(recommendationDestination)
+      .then((products) => {
+        if (!cancelled) setRecommendations({ destination: recommendationDestination, products: products.slice(0, 3) });
+      })
+      .catch(() => {
+        if (!cancelled) setRecommendations({ destination: recommendationDestination, products: [] });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [recommendationDestination]);
 
   useEffect(() => {
     if (!trip) return;
@@ -1259,6 +1388,12 @@ export default function TripDetailPage() {
             />
           </div>
         </div>
+
+        <MyRealTripRecommendations
+          destination={trip.destination}
+          products={recommendations.destination === trip.destination ? recommendations.products : []}
+          isLoading={recommendations.destination !== trip.destination}
+        />
       </section>
     </main>
   );
