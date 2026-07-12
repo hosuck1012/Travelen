@@ -127,6 +127,7 @@ function createInfoWindowContent(activity: MappableActivity) {
   appendInfoRow(rows, "시간", getTimeRangeLabel(activity.time));
   appendInfoRow(rows, "유형", activity.type);
   appendInfoRow(rows, "주소", activity.roadAddress || activity.address);
+  appendInfoRow(rows, "전화", activity.phone);
 
   container.append(sequence, title, rows);
 
@@ -179,7 +180,7 @@ export default function KakaoMap({ activities, area, route }: KakaoMapProps) {
     const diagnostics = activities.map((activity) => {
       const coordinates = getNormalizedActivityCoordinates(activity);
       return {
-        title: activity.title,
+        title: activity.placeName || activity.title,
         category: activity.category || activity.type,
         latitude: coordinates?.latitude ?? null,
         longitude: coordinates?.longitude ?? null,
@@ -267,7 +268,7 @@ export default function KakaoMap({ activities, area, route }: KakaoMapProps) {
       const marker = new maps.Marker({
         map,
         position,
-        title: activity.title,
+        title: activity.placeName || activity.title,
       });
       const markerClickHandler = () => {
         closeInfoOverlay();
@@ -285,7 +286,7 @@ export default function KakaoMap({ activities, area, route }: KakaoMapProps) {
       const markerContent = document.createElement("div");
       markerContent.className = "grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-[var(--primary)] text-xs font-black text-white shadow-lg";
       markerContent.textContent = String(activity.scheduleIndex + 1);
-      markerContent.title = activity.title;
+      markerContent.title = activity.placeName || activity.title;
       markerContent.dataset.scheduleMarker = String(activity.scheduleIndex + 1);
 
       nextOverlays.push(new maps.CustomOverlay({

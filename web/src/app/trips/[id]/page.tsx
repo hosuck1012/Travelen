@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { FormEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { withNormalizedActivityCoordinates } from "@/lib/activity-coordinates";
 import KakaoMap from "./KakaoMap";
 import type {
@@ -23,6 +23,25 @@ import type {
 type ScheduleItem = Activity;
 type ItemType = ActivityCategory;
 
+type PlaceSearchResult = {
+  id: string;
+  name: string;
+  address: string;
+  roadAddress: string;
+  latitude: number;
+  longitude: number;
+  category: string;
+  phone: string;
+  placeUrl: string;
+};
+
+type DisplayPlaceDetails = {
+  name: string;
+  roadAddress: string;
+  phone: string;
+  placeUrl: string;
+};
+
 type ChatMessage = {
   id: number;
   role: "ai" | "user";
@@ -39,7 +58,9 @@ const dayTabs: { key: DayKey; label: string }[] = [
   { key: "day3", label: "Day 3" },
 ];
 
+const tripDayKeys: DayKey[] = ["day1", "day2", "day3"];
 const itineraryCacheVersion = 3;
+const placeSearchCache = new Map<string, Promise<PlaceSearchResult | null>>();
 
 const typeStyles: Record<ItemType, string> = {
   관광지: "bg-[var(--primary-soft)] text-[var(--primary)]",
@@ -62,6 +83,119 @@ const initialMessages: ChatMessage[] = [
     text: "안녕하세요! 일정에서 바꾸고 싶은 부분을 자연스럽게 말해주세요.",
   },
 ];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizePlaceCoordinate(value: unknown, min: number, max: number): number | null {
+  const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
+function normalizePlaceSearchResult(value: unknown): PlaceSearchResult | null {
+  if (!isRecord(value)) return null;
+
+  const latitude = normalizePlaceCoordinate(value.latitude, -90, 90);
+  const longitude = normalizePlaceCoordinate(value.longitude, -180, 180);
+  if (latitude === null || longitude === null) return null;
+
+  return {
+    id: typeof value.id === "string" ? value.id : "",
+    name: typeof value.name === "string" ? value.name : "",
+    address: typeof value.address === "string" ? value.address : "",
+    roadAddress: typeof value.roadAddress === "string" ? value.roadAddress : "",
+    latitude,
+    longitude,
+    category: typeof value.category === "string" ? value.category : "",
+    phone: typeof value.phone === "string" ? value.phone : "",
+    placeUrl: typeof value.placeUrl === "string" ? value.placeUrl : "",
+  };
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isPlaceSearchTarget(activity: Activity): boolean {
+  const normalizedCategory = activity.category?.trim().toLowerCase();
+  return activity.type === "식당" || activity.type === "숙소" || normalizedCategory === "restaurant" || normalizedCategory === "hotel";
+}
+
+function hasPlaceDetails(activity: Activity): boolean {
+  return [activity.placeId, activity.placeName, activity.roadAddress, activity.address, activity.phone, activity.placeUrl].some(isNonEmptyString);
+}
+
+function getActivityLookupKey(planId: PlanId, dayKey: DayKey, activity: Activity): string {
+  return [planId, dayKey, activity.id, activity.time, activity.type, activity.title].filter(Boolean).join("|");
+}
+
+function getPlaceSearchName(activity: Activity, hotelName: string): string {
+  if (activity.placeName?.trim()) return activity.placeName.trim();
+
+  const isGenericHotelTitle = activity.type === "숙소" && /(?:숙소|호텔|조식|복귀|체크인|체크아웃|휴식|준비)/.test(activity.title.trim());
+  if (isGenericHotelTitle && hotelName.trim()) return hotelName.trim();
+
+  return activity.title
+    .replace(/[()（）]/g, " ")
+    .replace(/\s+(?:도착|출발|방문|관람|감상|산책|체험|투어|휴식|체크인|체크아웃|이동|복귀|준비)(?:\s|$).*$/, "")
+    .replace(/에서\s+(?:아침|점심|저녁|식사|휴식).*$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildPlaceSearchQuery(destination: string, activity: Activity, hotelName: string): string {
+  const destinationName = destination.split(/[,/]/)[0]?.trim() ?? destination.trim();
+  const placeName = getPlaceSearchName(activity, hotelName);
+  if (!destinationName || !placeName) return "";
+  return `${destinationName} ${placeName}`.replace(/\s+/g, " ").trim();
+}
+
+function searchFirstPlace(query: string): Promise<PlaceSearchResult | null> {
+  const normalizedQuery = query.replace(/\s+/g, " ").trim();
+  if (!normalizedQuery) return Promise.resolve(null);
+
+  const cached = placeSearchCache.get(normalizedQuery);
+  if (cached) return cached;
+
+  const search = fetch(`/api/places/search?query=${encodeURIComponent(normalizedQuery)}`, { cache: "no-store" })
+    .then(async (response) => {
+      if (!response.ok) return null;
+      const payload = (await response.json()) as unknown;
+      if (!Array.isArray(payload)) return null;
+      return normalizePlaceSearchResult(payload[0]) ?? null;
+    })
+    .catch(() => null);
+
+  placeSearchCache.set(normalizedQuery, search);
+  return search;
+}
+
+function mergeActivityWithPlace(activity: Activity, place: PlaceSearchResult): Activity {
+  return {
+    ...activity,
+    placeName: place.name || activity.placeName,
+    placeId: place.id || activity.placeId,
+    address: place.address || activity.address,
+    roadAddress: place.roadAddress || activity.roadAddress,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    category: place.category || activity.category,
+    phone: place.phone || activity.phone,
+    placeUrl: place.placeUrl || activity.placeUrl,
+  };
+}
+
+function getSchedulePlaceDetails(item: ScheduleItem): DisplayPlaceDetails | null {
+  if (!isPlaceSearchTarget(item) || !hasPlaceDetails(item)) return null;
+
+  return {
+    name: item.placeName?.trim() || item.title,
+    roadAddress: item.roadAddress?.trim() || item.address?.trim() || "",
+    phone: item.phone?.trim() || "",
+    placeUrl: item.placeUrl?.trim() || "",
+  };
+}
 
 const tripPlans: Record<PlanId, TripPlan> = {
   relax: {
@@ -621,32 +755,57 @@ function ItineraryStatusScreen({ error, onRetry }: { error: string | null; onRet
   );
 }
 
-function ScheduleList({ items }: { items: ScheduleItem[] }) {
+function ScheduleList({ items, isPlaceLoading }: { items: ScheduleItem[]; isPlaceLoading: (item: ScheduleItem) => boolean }) {
   return (
     <div className="grid gap-4">
-      {items.map((item, index) => (
-        <article key={`${item.time}-${item.title}`} className="rounded-[24px] border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
-          <div className="flex gap-4">
-            <div className="flex w-14 shrink-0 flex-col items-center">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] text-sm font-black text-white">
-                {index + 1}
-              </span>
-              <span className="mt-3 text-xs font-black text-[var(--primary)]">{item.time}</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs font-black ${typeStyles[item.type]}`}>{item.type}</span>
-                <span className="text-xs font-bold text-[var(--muted)]">{item.meta}</span>
+      {items.map((item, index) => {
+        const placeDetails = getSchedulePlaceDetails(item);
+        const isLoadingPlace = isPlaceSearchTarget(item) && isPlaceLoading(item) && !placeDetails;
+        const displayTitle = placeDetails?.name || item.title;
+
+        return (
+          <article key={`${item.time}-${item.title}`} className="rounded-[24px] border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
+            <div className="flex gap-4">
+              <div className="flex w-14 shrink-0 flex-col items-center">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] text-sm font-black text-white">
+                  {index + 1}
+                </span>
+                <span className="mt-3 text-xs font-black text-[var(--primary)]">{item.time}</span>
               </div>
-              <h3 className="mt-3 text-xl font-black text-[#17151f]">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{item.description}</p>
-              <div className="mt-4 rounded-2xl bg-[#fbfafd] px-4 py-3 text-sm font-extrabold text-[#625d6d]">
-                예상 비용: {item.cost}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-3 py-1 text-xs font-black ${typeStyles[item.type]}`}>{item.type}</span>
+                  <span className="text-xs font-bold text-[var(--muted)]">{item.meta}</span>
+                </div>
+                <h3 className="mt-3 text-xl font-black text-[#17151f]">{displayTitle}</h3>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{item.description}</p>
+                {placeDetails ? (
+                  <div className="mt-4 rounded-2xl border border-[#ebe4fb] bg-[#fbfafd] px-4 py-3 text-sm text-[#625d6d]">
+                    <div className="text-xs font-black text-[var(--primary)]">카카오 장소 정보</div>
+                    <div className="mt-2 font-black text-[#312d3a]">{placeDetails.name}</div>
+                    {placeDetails.roadAddress ? <div className="mt-1 leading-6">{placeDetails.roadAddress}</div> : null}
+                    {placeDetails.phone ? <div className="mt-1 font-bold">{placeDetails.phone}</div> : null}
+                    {placeDetails.placeUrl ? (
+                      <a className="mt-3 inline-flex rounded-full bg-[#f3efff] px-3 py-1.5 text-xs font-black text-[var(--primary)]" href={placeDetails.placeUrl} target="_blank" rel="noreferrer">
+                        카카오맵에서 보기
+                      </a>
+                    ) : null}
+                  </div>
+                ) : null}
+                {isLoadingPlace ? (
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--primary-soft)] px-3 py-1.5 text-xs font-black text-[var(--primary)]">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--primary)]" />
+                    장소 정보를 불러오는 중...
+                  </div>
+                ) : null}
+                <div className="mt-4 rounded-2xl bg-[#fbfafd] px-4 py-3 text-sm font-extrabold text-[#625d6d]">
+                  예상 비용: {item.cost}
+                </div>
               </div>
             </div>
-          </div>
-        </article>
-      ))}
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -765,8 +924,29 @@ export default function TripDetailPage() {
   const [isResponding, setIsResponding] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
+  const [placeLoadingByKey, setPlaceLoadingByKey] = useState<Record<string, boolean>>({});
   const requestInFlightRef = useRef(false);
   const itineraryRequestRef = useRef<string | null>(null);
+  const placeLookupAttemptedRef = useRef(new Set<string>());
+  const isMountedRef = useRef(true);
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+    },
+    [],
+  );
+
+  const setPlaceLoading = useCallback((activityKey: string, isLoading: boolean) => {
+    setPlaceLoadingByKey((current) => {
+      if (isLoading) return current[activityKey] ? current : { ...current, [activityKey]: true };
+      if (!current[activityKey]) return current;
+
+      const next = { ...current };
+      delete next[activityKey];
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!isPlanId(requestedId)) return;
@@ -841,6 +1021,52 @@ export default function TripDetailPage() {
         setItineraryError(error instanceof Error ? error.message : "상세 일정 생성 중 오류가 발생했습니다.");
       });
   }, [loadAttempt, requestedId]);
+
+  useEffect(() => {
+    if (!trip) return;
+
+    tripDayKeys.forEach((dayKey) => {
+      trip.days[dayKey].items.forEach((activity, itemIndex) => {
+        if (!isPlaceSearchTarget(activity) || hasPlaceDetails(activity)) return;
+
+        const activityKey = getActivityLookupKey(trip.id, dayKey, activity);
+        if (placeLookupAttemptedRef.current.has(activityKey)) return;
+
+        const query = buildPlaceSearchQuery(trip.destination, activity, trip.hotel);
+        if (!query) return;
+
+        placeLookupAttemptedRef.current.add(activityKey);
+        setPlaceLoading(activityKey, true);
+
+        void searchFirstPlace(query)
+          .then((place) => {
+            if (!place || !isMountedRef.current) return;
+
+            setTrip((current) => {
+              if (!current) return current;
+
+              const currentActivity = current.days[dayKey].items[itemIndex];
+              if (!currentActivity || getActivityLookupKey(current.id, dayKey, currentActivity) !== activityKey || hasPlaceDetails(currentActivity)) return current;
+
+              const currentDay = current.days[dayKey];
+              return {
+                ...current,
+                days: {
+                  ...current.days,
+                  [dayKey]: {
+                    ...currentDay,
+                    items: currentDay.items.map((item, index) => (index === itemIndex ? mergeActivityWithPlace(item, place) : item)),
+                  },
+                },
+              };
+            });
+          })
+          .finally(() => {
+            if (isMountedRef.current) setPlaceLoading(activityKey, false);
+          });
+      });
+    });
+  }, [setPlaceLoading, trip]);
 
   if (!isPlanId(requestedId)) {
     return <InvalidPlanScreen id={requestedId} />;
@@ -1014,7 +1240,7 @@ export default function TripDetailPage() {
               <h2 className="mt-2 text-2xl font-black">{currentDay.summary}</h2>
               <p className="mt-3 text-sm font-bold text-[var(--muted)]">{currentDay.route}</p>
             </div>
-            <ScheduleList items={currentDay.items} />
+            <ScheduleList items={currentDay.items} isPlaceLoading={(item) => Boolean(placeLoadingByKey[getActivityLookupKey(trip.id, activeDay, item)])} />
           </section>
 
           <div className={`${mobilePanel === "map" ? "block" : "hidden"} lg:sticky lg:top-8 lg:block`}>
