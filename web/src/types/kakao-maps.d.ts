@@ -9,11 +9,11 @@ interface KakaoLatLngBounds {
   extend(position: KakaoLatLng): void;
 }
 
-interface KakaoCustomOverlay {
+interface KakaoMarker {
   setMap(map: KakaoMapInstance | null): void;
 }
 
-interface KakaoMarker {
+interface KakaoCustomOverlay {
   setMap(map: KakaoMapInstance | null): void;
 }
 
@@ -33,6 +33,10 @@ interface KakaoMapsNamespace {
     content: HTMLElement;
     yAnchor?: number;
   }) => KakaoCustomOverlay;
+  event: {
+    addListener(target: object, type: string, handler: () => void): void;
+    removeListener(target: object, type: string, handler: () => void): void;
+  };
 }
 
 interface Window {
