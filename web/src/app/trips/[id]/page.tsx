@@ -39,6 +39,8 @@ const dayTabs: { key: DayKey; label: string }[] = [
   { key: "day3", label: "Day 3" },
 ];
 
+const itineraryCacheVersion = 3;
+
 const typeStyles: Record<ItemType, string> = {
   관광지: "bg-[var(--primary-soft)] text-[var(--primary)]",
   식당: "bg-[#fff0e7] text-[#b15929]",
@@ -773,16 +775,17 @@ export default function TripDetailPage() {
     itineraryRequestRef.current = requestKey;
     setItineraryError(null);
 
-    const cacheKey = `tripmate.generatedItinerary.${requestedId}`;
+    const cacheKey = `tripmate.generatedItinerary.v2.${requestedId}`;
     if (loadAttempt === 0) {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         try {
-          const response = JSON.parse(cached) as GenerateItineraryResponse;
-          if (response.plan?.id === requestedId) {
+          const response = JSON.parse(cached) as GenerateItineraryResponse & { mapDataVersion?: number };
+          if (response.mapDataVersion === itineraryCacheVersion && response.plan?.id === requestedId) {
             queueMicrotask(() => setTrip(cloneTripPlan(response.plan)));
             return;
           }
+          sessionStorage.removeItem(cacheKey);
         } catch {
           sessionStorage.removeItem(cacheKey);
         }
@@ -831,7 +834,7 @@ export default function TripDetailPage() {
         const data = (await response.json()) as GenerateItineraryResponse | { error?: string };
         if (!response.ok) throw new Error("error" in data && data.error ? data.error : "상세 일정을 만들지 못했습니다.");
         const generated = data as GenerateItineraryResponse;
-        sessionStorage.setItem(cacheKey, JSON.stringify(generated));
+        sessionStorage.setItem(cacheKey, JSON.stringify({ ...generated, mapDataVersion: itineraryCacheVersion }));
         setTrip(cloneTripPlan(generated.plan));
       })
       .catch((error: unknown) => {

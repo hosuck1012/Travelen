@@ -21,8 +21,15 @@ export type Activity = {
   meta: string;
   cost: string;
   marker: { x: string; y: string };
+  placeName?: string;
+  placeId?: string;
+  address?: string;
+  roadAddress?: string;
   latitude?: number | string | null;
   longitude?: number | string | null;
+  category?: string;
+  phone?: string;
+  placeUrl?: string;
 };
 
 export type TripDay = {

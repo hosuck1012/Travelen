@@ -77,6 +77,7 @@ function MapMessage({ title, description }: { title: string; description: string
 export default function KakaoMap({ activities, area, route }: KakaoMapProps) {
   const mapElementRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMapInstance | null>(null);
+  const markersRef = useRef<KakaoMarker[]>([]);
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
   const [maps, setMaps] = useState<KakaoMapsNamespace | null>(null);
   const [status, setStatus] = useState<MapStatus>("idle");
@@ -90,6 +91,32 @@ export default function KakaoMap({ activities, area, route }: KakaoMapProps) {
         .filter((activity): activity is MappableActivity => activity !== null),
     [activities],
   );
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+
+    const diagnostics = activities.map((activity) => {
+      const coordinates = getNormalizedActivityCoordinates(activity);
+      return {
+        title: activity.title,
+        category: activity.category || activity.type,
+        latitude: coordinates?.latitude ?? null,
+        longitude: coordinates?.longitude ?? null,
+      };
+    });
+    console.table(diagnostics);
+
+    const coordinateGroups = new Map<string, string[]>();
+    diagnostics.forEach(({ title, latitude, longitude }) => {
+      if (latitude === null || longitude === null) return;
+      const key = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+      coordinateGroups.set(key, [...(coordinateGroups.get(key) ?? []), title]);
+    });
+    const duplicates = [...coordinateGroups.entries()]
+      .filter(([, titles]) => titles.length > 1)
+      .map(([coordinate, titles]) => ({ coordinate, titles }));
+    if (duplicates.length > 0) console.warn("[KakaoMap] 동일 좌표 일정", duplicates);
+  }, [activities]);
 
   useEffect(() => {
     const element = mapElementRef.current;
@@ -125,6 +152,8 @@ export default function KakaoMap({ activities, area, route }: KakaoMapProps) {
     const element = mapElementRef.current;
     if (!maps || !element || !isMapVisible || mappableActivities.length === 0) return;
 
+    markersRef.current.forEach((marker) => marker.setMap(null));
+    markersRef.current = [];
     overlaysRef.current.forEach((overlay) => overlay.setMap(null));
     overlaysRef.current = [];
 
@@ -137,35 +166,58 @@ export default function KakaoMap({ activities, area, route }: KakaoMapProps) {
     map.relayout();
 
     const bounds = new maps.LatLngBounds();
-    overlaysRef.current = mappableActivities.map((activity) => {
+    const nextMarkers: KakaoMarker[] = [];
+    const nextOverlays: KakaoCustomOverlay[] = [];
+    mappableActivities.forEach((activity) => {
       const position = new maps.LatLng(activity.latitude, activity.longitude);
       bounds.extend(position);
 
+      nextMarkers.push(new maps.Marker({
+        map,
+        position,
+        title: activity.title,
+      }));
+
       const markerContent = document.createElement("div");
-      markerContent.className = "grid h-9 w-9 place-items-center rounded-full border-4 border-white bg-[var(--primary)] text-sm font-black text-white shadow-lg";
+      markerContent.className = "grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-[var(--primary)] text-xs font-black text-white shadow-lg";
       markerContent.textContent = String(activity.scheduleIndex + 1);
       markerContent.title = activity.title;
+      markerContent.dataset.scheduleMarker = String(activity.scheduleIndex + 1);
 
-      const overlay = new maps.CustomOverlay({
+      nextOverlays.push(new maps.CustomOverlay({
         map,
         position,
         content: markerContent,
-        yAnchor: 0.5,
-      });
-      return overlay;
+        yAnchor: 2.15,
+      }));
     });
+    markersRef.current = nextMarkers;
+    overlaysRef.current = nextOverlays;
+
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[KakaoMap] 마커 생성 완료", {
+        activityCount: activities.length,
+        validCoordinateCount: mappableActivities.length,
+        markerCount: nextMarkers.length,
+        overlayCount: nextOverlays.length,
+      });
+    }
 
     map.setBounds(bounds, 64, 64, 150, 64);
     setStatus("ready");
 
     return () => {
-      overlaysRef.current.forEach((overlay) => overlay.setMap(null));
-      overlaysRef.current = [];
+      nextMarkers.forEach((marker) => marker.setMap(null));
+      nextOverlays.forEach((overlay) => overlay.setMap(null));
+      if (markersRef.current === nextMarkers) markersRef.current = [];
+      if (overlaysRef.current === nextOverlays) overlaysRef.current = [];
     };
-  }, [isMapVisible, mappableActivities, maps]);
+  }, [activities.length, isMapVisible, mappableActivities, maps]);
 
   useEffect(
     () => () => {
+      markersRef.current.forEach((marker) => marker.setMap(null));
+      markersRef.current = [];
       overlaysRef.current.forEach((overlay) => overlay.setMap(null));
       overlaysRef.current = [];
       mapRef.current = null;

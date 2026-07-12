@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { classifyGeminiError, GeminiPlansError } from "@/lib/gemini-plans";
+import { enrichTripPlanWithKakaoPlaces } from "@/lib/kakao-places";
 import type { GenerateItineraryRequest, GenerateItineraryResponse, TripPlan } from "@/types/trip";
 
 const stringField = { type: "string" } as const;
@@ -90,5 +91,6 @@ export async function generateItineraryWithGemini(
 
   if (typeof parsed !== "object" || parsed === null || !("days" in parsed)) throw new GeminiPlansError("output");
   const plan: TripPlan = { ...request.plan, days: (parsed as { days: TripPlan["days"] }).days };
-  return { plan, generatedAt: new Date().toISOString() };
+  const enrichedPlan = await enrichTripPlanWithKakaoPlaces(plan);
+  return { plan: enrichedPlan, generatedAt: new Date().toISOString() };
 }

@@ -38,8 +38,9 @@ export function normalizeCoordinateValue(value: unknown, min: number, max: numbe
 }
 
 export function getNormalizedActivityCoordinates(activity: Activity): NormalizedCoordinates | null {
-  const latitude = normalizeCoordinateValue(activity.latitude, -90, 90);
-  const longitude = normalizeCoordinateValue(activity.longitude, -180, 180);
+  const aliases = activity as Activity & { lat?: unknown; lng?: unknown; x?: unknown; y?: unknown };
+  const latitude = normalizeCoordinateValue(activity.latitude ?? aliases.lat ?? aliases.y, -90, 90);
+  const longitude = normalizeCoordinateValue(activity.longitude ?? aliases.lng ?? aliases.x, -180, 180);
 
   if (latitude !== null && longitude !== null) return { latitude, longitude };
 
