@@ -45,9 +45,23 @@ export type TripPlan = {
   days: Record<DayKey, TripDay>;
 };
 
+export type PlanSummary = Omit<TripPlan, "days"> & {
+  highlights: string[];
+};
+
 export type GeneratePlansResponse = {
   preferences: TripPreferences;
-  plans: TripPlan[];
+  plans: PlanSummary[];
+  generatedAt: string;
+};
+
+export type GenerateItineraryRequest = {
+  preferences: TripPreferences;
+  plan: PlanSummary;
+};
+
+export type GenerateItineraryResponse = {
+  plan: TripPlan;
   generatedAt: string;
 };
 

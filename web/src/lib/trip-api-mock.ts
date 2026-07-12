@@ -1,8 +1,11 @@
 import type {
   Activity,
   DayKey,
+  GenerateItineraryRequest,
+  GeneratePlansResponse,
   ModifyItineraryRequest,
   ModifyItineraryResponse,
+  PlanSummary,
   PlanId,
   TripDay,
   TripPlan,
@@ -131,6 +134,49 @@ export function isTripPreferences(value: unknown): value is TripPreferences {
     isNonEmptyString(value.budgetPerPerson) &&
     paces.includes(value.pace as TripPreferences["pace"])
   );
+}
+
+export function isPlanSummary(value: unknown): value is PlanSummary {
+  if (!isRecord(value) || !planIds.includes(value.id as PlanId)) return false;
+  return (
+    !isNonEmptyString(value.title) ||
+    !isNonEmptyString(value.subtitle) ||
+    !isNonEmptyString(value.destination) ||
+    !isNonEmptyString(value.dateRange) ||
+    !isNonEmptyString(value.budget) ||
+    !isNonEmptyString(value.movement) ||
+    !isNonEmptyString(value.hotel) ||
+    !Array.isArray(value.tags) ||
+    value.tags.length === 0 ||
+    !value.tags.every(isNonEmptyString) ||
+    !Array.isArray(value.highlights) ||
+    value.highlights.length === 0 ||
+    !value.highlights.every(isNonEmptyString)
+  ) === false;
+}
+
+export function isTripPlan(value: unknown): value is TripPlan {
+  if (!isPlanSummary({ ...(isRecord(value) ? value : {}), highlights: ["상세 일정"] }) || !isRecord(value) || !isRecord(value.days)) return false;
+
+  const days = value.days;
+  return (["day1", "day2", "day3"] as DayKey[]).every((dayId) => {
+    const day = days[dayId];
+    return isTripDay(day) && day.id === dayId;
+  });
+}
+
+export function isGeneratePlansResponse(value: unknown): value is GeneratePlansResponse {
+  if (!isRecord(value) || !isTripPreferences(value.preferences) || !isNonEmptyString(value.generatedAt) || !Array.isArray(value.plans)) {
+    return false;
+  }
+
+  if (value.plans.length !== 3 || !value.plans.every(isPlanSummary)) return false;
+  const ids = value.plans.map((plan) => plan.id);
+  return planIds.every((id) => ids.filter((planId) => planId === id).length === 1);
+}
+
+export function isGenerateItineraryRequest(value: unknown): value is GenerateItineraryRequest {
+  return isRecord(value) && isTripPreferences(value.preferences) && isPlanSummary(value.plan);
 }
 
 function isActivity(value: unknown): value is Activity {

@@ -8,9 +8,13 @@ import type {
   Activity,
   ActivityCategory,
   DayKey,
+  GenerateItineraryRequest,
+  GenerateItineraryResponse,
   ModifyItineraryRequest,
   ModifyItineraryResponse,
   PlanId,
+  PlanSummary,
+  TripPreferences,
   TripPlan,
 } from "@/types/trip";
 
@@ -583,6 +587,27 @@ function InvalidPlanScreen({ id }: { id: string }) {
   );
 }
 
+function ItineraryStatusScreen({ error, onRetry }: { error: string | null; onRetry: () => void }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-[var(--background)] px-5 py-12 text-[var(--foreground)]">
+      <section className="w-full max-w-2xl rounded-[32px] border border-white bg-white/90 p-8 text-center shadow-[var(--shadow)] md:p-12">
+        <p className="text-sm font-black text-[var(--primary)]">AI 상세 일정</p>
+        <h1 className="mt-3 text-3xl font-black md:text-4xl">{error ? "상세 일정을 만들지 못했습니다." : "선택한 플랜의 상세 일정을 만들고 있어요."}</h1>
+        <p className="mt-4 leading-7 text-[var(--muted)]">{error ?? "관광지, 식당, 숙소와 이동 동선을 날짜별로 구성하고 있습니다."}</p>
+        {error ? (
+          <button className="mt-7 rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] px-7 py-4 text-sm font-extrabold text-white" type="button" onClick={onRetry}>
+            다시 시도
+          </button>
+        ) : (
+          <div className="mx-auto mt-7 h-2 max-w-sm overflow-hidden rounded-full bg-[#ece9f3]">
+            <div className="h-full w-2/3 animate-pulse rounded-full bg-[linear-gradient(90deg,var(--primary),var(--primary-2))]" />
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
 function ScheduleList({ items }: { items: ScheduleItem[] }) {
   return (
     <div className="grid gap-4">
@@ -757,8 +782,9 @@ function ChatPanel({
 export default function TripDetailPage() {
   const params = useParams<{ id: string }>();
   const requestedId = params.id;
-  const initialTrip = isPlanId(requestedId) ? tripPlans[requestedId] : tripPlans.balance;
-  const [trip, setTrip] = useState<TripPlan>(() => cloneTripPlan(initialTrip));
+  const [trip, setTrip] = useState<TripPlan | null>(null);
+  const [itineraryError, setItineraryError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [activeDay, setActiveDay] = useState<DayKey>("day1");
   const [mobilePanel, setMobilePanel] = useState<"schedule" | "map" | "chat">("schedule");
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
@@ -767,9 +793,87 @@ export default function TripDetailPage() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
   const requestInFlightRef = useRef(false);
+  const itineraryRequestRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isPlanId(requestedId)) return;
+    const requestKey = `${requestedId}:${loadAttempt}`;
+    if (itineraryRequestRef.current === requestKey) return;
+    itineraryRequestRef.current = requestKey;
+    setItineraryError(null);
+
+    const cacheKey = `tripmate.generatedItinerary.${requestedId}`;
+    if (loadAttempt === 0) {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const response = JSON.parse(cached) as GenerateItineraryResponse;
+          if (response.plan?.id === requestedId) {
+            queueMicrotask(() => setTrip(cloneTripPlan(response.plan)));
+            return;
+          }
+        } catch {
+          sessionStorage.removeItem(cacheKey);
+        }
+      }
+    }
+
+    const fallback = tripPlans[requestedId];
+    const fallbackPlan: PlanSummary = {
+      id: fallback.id,
+      title: fallback.title,
+      subtitle: fallback.subtitle,
+      destination: fallback.destination,
+      dateRange: fallback.dateRange,
+      budget: fallback.budget,
+      movement: fallback.movement,
+      hotel: fallback.hotel,
+      tags: [...fallback.tags],
+      highlights: fallback.tags.slice(0, 3),
+    };
+    const fallbackPreferences: TripPreferences = {
+      destination: fallback.destination,
+      startDate: "2026-07-24",
+      endDate: "2026-07-26",
+      companion: "연인",
+      interests: fallback.tags,
+      budgetPerPerson: fallback.budget,
+      pace: requestedId === "relax" ? "여유롭게" : requestedId === "active" ? "알차게" : "적당히",
+    };
+    let requestBody: GenerateItineraryRequest = { plan: fallbackPlan, preferences: fallbackPreferences };
+    const selected = sessionStorage.getItem("tripmate.selectedPlan");
+    if (selected) {
+      try {
+        const parsed = JSON.parse(selected) as GenerateItineraryRequest & { selectedAt?: string };
+        if (parsed.plan?.id === requestedId && parsed.preferences) requestBody = { plan: parsed.plan, preferences: parsed.preferences };
+      } catch {
+        // The fallback above keeps direct links usable when session data is invalid.
+      }
+    }
+
+    void fetch("/api/itinerary/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    })
+      .then(async (response) => {
+        const data = (await response.json()) as GenerateItineraryResponse | { error?: string };
+        if (!response.ok) throw new Error("error" in data && data.error ? data.error : "상세 일정을 만들지 못했습니다.");
+        const generated = data as GenerateItineraryResponse;
+        sessionStorage.setItem(cacheKey, JSON.stringify(generated));
+        setTrip(cloneTripPlan(generated.plan));
+      })
+      .catch((error: unknown) => {
+        setItineraryError(error instanceof Error ? error.message : "상세 일정 생성 중 오류가 발생했습니다.");
+      });
+  }, [loadAttempt, requestedId]);
 
   if (!isPlanId(requestedId)) {
     return <InvalidPlanScreen id={requestedId} />;
+  }
+
+  if (!trip) {
+    return <ItineraryStatusScreen error={itineraryError} onRetry={() => setLoadAttempt((current) => current + 1)} />;
   }
 
   const currentDay = trip.days[activeDay];
@@ -783,7 +887,7 @@ export default function TripDetailPage() {
   ];
 
   async function requestItineraryModification(message: string, appendUserMessage: boolean) {
-    if (!message || requestInFlightRef.current) return;
+    if (!trip || !message || requestInFlightRef.current) return;
     requestInFlightRef.current = true;
 
     const modificationRequest: ModifyItineraryRequest = {

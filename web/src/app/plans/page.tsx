@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
-import type { GeneratePlansResponse, PlanId, TripPlan } from "@/types/trip";
+import type { GeneratePlansResponse, PlanId, PlanSummary } from "@/types/trip";
 
 const planBadges: Record<PlanId, string> = { relax: "휴식형", balance: "균형형", active: "활동형" };
 
@@ -28,7 +28,12 @@ function parseGeneratedPlans(raw: string): GeneratePlansResponse | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as GeneratePlansResponse;
-    return parsed.preferences && Array.isArray(parsed.plans) && parsed.plans.length > 0 ? parsed : null;
+    return parsed.preferences &&
+      Array.isArray(parsed.plans) &&
+      parsed.plans.length > 0 &&
+      parsed.plans.every((plan) => Array.isArray(plan.highlights))
+      ? parsed
+      : null;
   } catch {
     return null;
   }
@@ -80,12 +85,12 @@ export default function PlansPage() {
     ["밀도", plannerInput.pace],
   ];
 
-  function saveSelectedPlan(plan: TripPlan) {
+  function saveSelectedPlan(plan: PlanSummary) {
     sessionStorage.setItem(
       "tripmate.selectedPlan",
       JSON.stringify({
-        id: plan.id,
-        title: plan.title,
+        plan,
+        preferences: plannerInput,
         selectedAt: new Date().toISOString(),
       }),
     );
@@ -116,7 +121,7 @@ export default function PlansPage() {
                 당신을 위한 3가지 여행 플랜
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)] md:text-lg">
-                입력한 조건을 기준으로 휴식형, 균형형, 활동형 mock 플랜을 비교합니다.
+                입력한 조건을 기준으로 휴식형, 균형형, 활동형 AI 요약 플랜을 비교합니다.
               </p>
             </div>
 
@@ -143,13 +148,11 @@ export default function PlansPage() {
           <div className="mt-10 grid gap-5 lg:grid-cols-3">
             {plans.map((plan) => {
               const styles = toneStyles[plan.id];
-              const places = Array.from(
-                new Set(Object.values(plan.days).flatMap((day) => day.items.filter((item) => item.type === "관광지").map((item) => item.title))),
-              ).slice(0, 3);
+              const places = plan.highlights.slice(0, 3);
               return (
                 <article
                   key={plan.id}
-                  className="group overflow-hidden rounded-[28px] border border-[var(--line)] bg-white shadow-[var(--shadow-sm)] transition hover:-translate-y-1 hover:shadow-[var(--shadow)]"
+                  className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-[var(--line)] bg-white shadow-[var(--shadow-sm)] transition hover:-translate-y-1 hover:shadow-[var(--shadow)]"
                 >
                   <div className={`relative h-52 overflow-hidden ${styles.image}`}>
                     <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,transparent,rgba(23,21,31,0.2))]" />
@@ -158,7 +161,7 @@ export default function PlansPage() {
                     </span>
                   </div>
 
-                  <div className="p-6">
+                  <div className="flex flex-1 flex-col p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h2 className="text-2xl font-black">{plan.title}</h2>
@@ -200,13 +203,15 @@ export default function PlansPage() {
                       ))}
                     </div>
 
-                    <Link
-                      className="mt-7 inline-flex min-h-13 w-full items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] px-6 text-sm font-extrabold text-white shadow-[0_14px_34px_rgba(116,71,239,0.24)] transition hover:-translate-y-0.5"
-                      href={`/trips/${plan.id}`}
-                      onClick={() => saveSelectedPlan(plan)}
-                    >
-                      이 플랜으로 상세 일정 만들기
-                    </Link>
+                    <div className="mt-auto pt-7">
+                      <Link
+                        className="inline-flex min-h-13 w-full items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--primary),var(--primary-2))] px-6 text-sm font-extrabold text-white shadow-[0_14px_34px_rgba(116,71,239,0.24)] transition hover:-translate-y-0.5"
+                        href={`/trips/${plan.id}`}
+                        onClick={() => saveSelectedPlan(plan)}
+                      >
+                        이 플랜으로 상세 일정 만들기
+                      </Link>
+                    </div>
                   </div>
                 </article>
               );
