@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { classifyGeminiError, GeminiPlansError } from "@/lib/gemini-plans";
+import { enrichTripPlanWithKakaoPlaces } from "@/lib/kakao-places";
 import { isTripPlan } from "@/lib/trip-api-mock";
 import type { DayKey, ModifyItineraryRequest, ModifyItineraryResponse, TripDay } from "@/types/trip";
 
@@ -118,10 +119,17 @@ function isValidResponse(value: unknown, request: ModifyItineraryRequest): value
   }
 
   const originalDays = normalizeCurrentItinerary(request.currentItinerary);
-  return dayKeys.every((dayId) => {
+  const daysAreValid = dayKeys.every((dayId) => {
     const unchanged = stableStringify(originalDays[dayId]) === stableStringify(candidate.plan!.days[dayId]);
     return changedDays.has(dayId) ? !unchanged : unchanged;
   });
+  if (!daysAreValid) return false;
+
+  const { days: currentDays, ...currentMetadata } = request.currentPlan;
+  const { days: candidateDays, ...candidateMetadata } = candidate.plan;
+  void currentDays;
+  void candidateDays;
+  return stableStringify(currentMetadata) === stableStringify(candidateMetadata);
 }
 
 export async function modifyItineraryWithGemini(
@@ -141,7 +149,9 @@ export async function modifyItineraryWithGemini(
       input: [
         `플랜 ID: ${request.planId}`,
         `사용자 수정 요청: ${request.message}`,
+        `현재 플랜 정보: ${JSON.stringify(request.currentPlan)}`,
         `현재 전체 일정: ${JSON.stringify(currentDays)}`,
+        "플랜의 제목, 부제, 여행지, 기간, 예산, 이동량, 숙소, 태그는 현재 플랜 정보와 정확히 같게 유지하세요.",
         "수정 요청과 직접 관련된 날짜만 변경하세요. 나머지 날짜는 필드, 활동 순서, 문구와 지도 좌표까지 그대로 유지하세요.",
         "기존 장소를 우선 활용하고, 요청에 꼭 필요한 경우에만 현실적인 장소를 한 곳 이하로 추가하세요. 존재 여부가 불확실한 장소는 만들지 마세요.",
         "changes에는 실제로 변경한 날짜만 넣고, before와 after에는 사용자가 이해할 수 있는 구체적인 변경 내용을 한글로 작성하세요.",
@@ -165,5 +175,7 @@ export async function modifyItineraryWithGemini(
   }
 
   if (!isValidResponse(parsed, request)) throw new GeminiPlansError("output");
-  return { ...parsed, modifiedAt: new Date().toISOString() };
+  const validated = parsed as Omit<ModifyItineraryResponse, "modifiedAt">;
+  const plan = await enrichTripPlanWithKakaoPlaces(validated.plan);
+  return { ...validated, plan, modifiedAt: new Date().toISOString() };
 }

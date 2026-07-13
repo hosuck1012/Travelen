@@ -45,7 +45,10 @@ function loadKakaoMaps(apiKey: string): Promise<KakaoMapsNamespace> {
       }
       window.kakao.maps.load(() => resolve(window.kakao!.maps));
     };
-    const handleError = () => reject(new Error("Kakao Maps SDK를 불러오지 못했습니다."));
+    const handleError = () => {
+      script.remove();
+      reject(new Error("Kakao Maps SDK를 불러오지 못했습니다."));
+    };
 
     script.addEventListener("load", handleLoad, { once: true });
     script.addEventListener("error", handleError, { once: true });

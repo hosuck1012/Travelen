@@ -122,12 +122,22 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+export function isValidTripDateRange(startDate: string, endDate: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return false;
+  const start = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  if (start.toISOString().slice(0, 10) !== startDate || end.toISOString().slice(0, 10) !== endDate) return false;
+  return end.getTime() - start.getTime() === 2 * 24 * 60 * 60 * 1000;
+}
+
 export function isTripPreferences(value: unknown): value is TripPreferences {
   if (!isRecord(value)) return false;
   return (
     isNonEmptyString(value.destination) &&
     isNonEmptyString(value.startDate) &&
     isNonEmptyString(value.endDate) &&
+    isValidTripDateRange(value.startDate, value.endDate) &&
     companions.includes(value.companion as TripPreferences["companion"]) &&
     Array.isArray(value.interests) &&
     value.interests.length > 0 &&
@@ -210,12 +220,14 @@ function isTripDay(value: unknown): value is TripDay {
 
 export function isModifyItineraryRequest(value: unknown): value is ModifyItineraryRequest {
   if (!isRecord(value)) return false;
-  return (
-    planIds.includes(value.planId as PlanId) &&
-    isNonEmptyString(value.message) &&
-    Array.isArray(value.currentItinerary) &&
-    value.currentItinerary.length === 3 &&
-    value.currentItinerary.every(isTripDay)
+  if (!planIds.includes(value.planId as PlanId) || !isNonEmptyString(value.message) || !isTripPlan(value.currentPlan)) return false;
+  if (value.currentPlan.id !== value.planId || !Array.isArray(value.currentItinerary) || value.currentItinerary.length !== 3) return false;
+  if (!value.currentItinerary.every(isTripDay)) return false;
+
+  const currentPlan = value.currentPlan;
+  const keys: DayKey[] = ["day1", "day2", "day3"];
+  return (value.currentItinerary as TripDay[]).every(
+    (day, index) => JSON.stringify(day) === JSON.stringify(currentPlan.days[keys[index]]),
   );
 }
 

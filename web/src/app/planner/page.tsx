@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
+import { isValidTripDateRange } from "@/lib/trip-api-mock";
 import type { GeneratePlansResponse, TripPreferences } from "@/types/trip";
 
 const companionOptions: TripPreferences["companion"][] = ["혼자", "연인", "친구", "가족"];
@@ -38,6 +39,13 @@ const initialForm: PlannerForm = {
   pace: "적당히",
 };
 
+function addDays(date: string, days: number): string {
+  if (!date) return "";
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
 export default function PlannerPage() {
   const router = useRouter();
   const [form, setForm] = useState<PlannerForm>(initialForm);
@@ -50,6 +58,7 @@ export default function PlannerPage() {
       form.destination.trim() &&
       form.startDate &&
       form.endDate &&
+      isValidTripDateRange(form.startDate, form.endDate) &&
       form.companion &&
       form.interests.length > 0 &&
       form.budgetPerPerson &&
@@ -74,6 +83,10 @@ export default function PlannerPage() {
     });
   }
 
+  function updateStartDate(startDate: string) {
+    setForm((current) => ({ ...current, startDate, endDate: addDays(startDate, 2) }));
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit || isSubmitting) return;
@@ -94,6 +107,11 @@ export default function PlannerPage() {
       }
 
       const generatedPlans = data as GeneratePlansResponse;
+      sessionStorage.removeItem("tripmate.selectedPlan");
+      for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
+        const key = sessionStorage.key(index);
+        if (key?.startsWith("tripmate.generatedItinerary.")) sessionStorage.removeItem(key);
+      }
       sessionStorage.setItem("tripmate.generatedPlans", JSON.stringify(generatedPlans));
       router.push("/plans");
     } catch (error) {
@@ -125,11 +143,11 @@ export default function PlannerPage() {
             긴 양식 없이 필요한 조건만 골라주세요.
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-8 text-[var(--muted)]">
-            이번 단계에서는 외부 API 없이 입력값을 브라우저에 임시 저장하고, 다음 화면에서 플랜 비교 준비 상태로 이어집니다.
+            입력한 조건으로 AI 플랜을 만들고, 선택한 결과를 브라우저에 임시 저장해 상세 일정으로 이어갑니다.
           </p>
 
           <div className="mt-8 grid gap-3 text-sm font-bold text-[#5e5968]">
-            {["도시 1개 기준", "여행 기간 1~7일", "초안 3개 비교 준비"].map((item) => (
+            {["도시 1개 기준", "2박 3일 일정", "초안 3개 비교 준비"].map((item) => (
               <div key={item} className="flex items-center gap-3 rounded-2xl bg-white/75 p-4 shadow-[var(--shadow-sm)]">
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">
                   ✓
@@ -172,7 +190,7 @@ export default function PlannerPage() {
                 className="min-h-14 w-full rounded-2xl border border-[#e7e3ed] bg-[#fbfafd] px-4 outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[rgba(116,71,239,0.1)]"
                 type="date"
                 value={form.startDate}
-                onChange={(event) => updateField("startDate", event.target.value)}
+                onChange={(event) => updateStartDate(event.target.value)}
                 required
               />
             </label>
@@ -184,6 +202,8 @@ export default function PlannerPage() {
                 type="date"
                 value={form.endDate}
                 onChange={(event) => updateField("endDate", event.target.value)}
+                min={addDays(form.startDate, 2)}
+                max={addDays(form.startDate, 2)}
                 required
               />
             </label>

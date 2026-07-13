@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
+import { isGeneratePlansResponse } from "@/lib/trip-api-mock";
 import type { GeneratePlansResponse, PlanId, PlanSummary } from "@/types/trip";
 
 const planBadges: Record<PlanId, string> = { relax: "휴식형", balance: "균형형", active: "활동형" };
@@ -27,13 +28,8 @@ const toneStyles = {
 function parseGeneratedPlans(raw: string): GeneratePlansResponse | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as GeneratePlansResponse;
-    return parsed.preferences &&
-      Array.isArray(parsed.plans) &&
-      parsed.plans.length > 0 &&
-      parsed.plans.every((plan) => Array.isArray(plan.highlights))
-      ? parsed
-      : null;
+    const parsed: unknown = JSON.parse(raw);
+    return isGeneratePlansResponse(parsed) ? parsed : null;
   } catch {
     return null;
   }

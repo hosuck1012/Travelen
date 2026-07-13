@@ -1040,15 +1040,16 @@ export default function TripDetailPage() {
   const [recommendationPreferences, setRecommendationPreferences] = useState<TripPreferences | null>(null);
   const requestInFlightRef = useRef(false);
   const itineraryRequestRef = useRef<string | null>(null);
+  const itineraryCacheKeyRef = useRef<string | null>(null);
   const placeLookupAttemptedRef = useRef(new Set<string>());
   const isMountedRef = useRef(true);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
       isMountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   const setPlaceLoading = useCallback((activityKey: string, isLoading: boolean) => {
     setPlaceLoadingByKey((current) => {
@@ -1108,6 +1109,7 @@ export default function TripDetailPage() {
     setItineraryError(null);
 
     const cacheKey = `tripmate.generatedItinerary.v3.${requestedId}.${encodeURIComponent(selectionKey)}`;
+    itineraryCacheKeyRef.current = cacheKey;
     if (loadAttempt === 0) {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
@@ -1241,6 +1243,7 @@ export default function TripDetailPage() {
     const modificationRequest: ModifyItineraryRequest = {
       planId: trip.id,
       message,
+      currentPlan: trip,
       currentItinerary: Object.values(trip.days),
     };
 
@@ -1266,6 +1269,13 @@ export default function TripDetailPage() {
       const modificationResponse = data as ModifyItineraryResponse;
       const changedDay = modificationResponse.changes[0]?.dayId;
       setTrip(cloneTripPlan(modificationResponse.plan));
+      const cacheKey = itineraryCacheKeyRef.current;
+      if (cacheKey) {
+        sessionStorage.setItem(
+          cacheKey,
+          JSON.stringify({ plan: modificationResponse.plan, generatedAt: modificationResponse.modifiedAt, mapDataVersion: itineraryCacheVersion }),
+        );
+      }
       setMessages((current) => [
         ...current,
         {

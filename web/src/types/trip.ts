@@ -84,6 +84,7 @@ export type ItineraryChange = {
 export type ModifyItineraryRequest = {
   planId: PlanId;
   message: string;
+  currentPlan: TripPlan;
   currentItinerary: TripDay[];
 };
 
